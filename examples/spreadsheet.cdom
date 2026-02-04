@@ -1,0 +1,466 @@
+{
+  "div": {
+    "id": "app",
+    "style": "display: contents",
+    "oncreate": "_(state({ sheet: { btcQty: 0.528, btcPrice: 64250.00, ethQty: 12.45, ethPrice: 3420.50, solQty: 185.00, solPrice: 145.15, usdcQty: 2500, usdcPrice: 1.00 }, metadata: { lastUpdate: '', ticks: 0 } }, {name: 'appState'}))",
+    "children": [
+      {
+        "div": {
+          "class": "sidebar",
+          "children": [
+            {
+              "div": {
+                "class": "logo",
+                "children": [
+                  "❖ CryptoSheet"
+                ]
+              }
+            },
+            {
+              "div": {
+                "style": "margin-top: auto; display: flex; flex-direction: column; gap: 1rem",
+                "children": [
+                  {
+                    "div": {
+                      "class": "stat-card",
+                      "children": [
+                        {
+                          "div": {
+                            "class": "stat-label",
+                            "children": [
+                              "Ticks"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "stat-value",
+                            "style": "font-size: 1.125rem",
+                            "children": [
+                              "_(/appState/metadata/ticks)"
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "div": {
+          "class": "main",
+          "children": [
+            {
+              "header": {
+                "class": "header",
+                "children": [
+                  {
+                    "h1": "Reactive Portfolio"
+                  },
+                  {
+                    "div": {
+                      "class": "badge",
+                      "children": [
+                        {
+                          "div": {
+                            "class": "dot"
+                          }
+                        },
+                        "LIVE"
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "div": {
+                "class": "stats-row",
+                "children": [
+                  {
+                    "div": {
+                      "class": "stat-card",
+                      "children": [
+                        {
+                          "div": {
+                            "class": "stat-label",
+                            "children": [
+                              "BTC Value"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "stat-value",
+                            "children": [
+                              "_(currency(/appState/sheet/btcQty * /appState/sheet/btcPrice))"
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "div": {
+                      "class": "stat-card",
+                      "children": [
+                        {
+                          "div": {
+                            "class": "stat-label",
+                            "children": [
+                              "Total"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "stat-value",
+                            "style": "color: var(--primary)",
+                            "children": [
+                              "_(currency(/appState/sheet/btcQty * /appState/sheet/btcPrice + /appState/sheet/ethQty * /appState/sheet/ethPrice + /appState/sheet/solQty * /appState/sheet/solPrice + /appState/sheet/usdcQty * /appState/sheet/usdcPrice))"
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "div": {
+                "class": "spreadsheet-container",
+                "children": [
+                  {
+                    "div": {
+                      "class": "grid",
+                      "style": "grid-template-columns: 50px 2fr 1fr 1.5fr 1.5fr 1fr",
+                      "children": [
+                        {
+                          "div": {
+                            "class": "cell cell-header"
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell cell-header",
+                            "children": [
+                              "Asset"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell cell-header",
+                            "children": [
+                              "Qty"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell cell-header",
+                            "children": [
+                              "Price"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell cell-header",
+                            "children": [
+                              "Value"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell cell-header",
+                            "children": [
+                              "%"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell cell-index",
+                            "children": [
+                              "2"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell",
+                            "children": [
+                              "Bitcoin (BTC)"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell cell-numeric",
+                            "children": [
+                              "_(/appState/sheet/btcQty)"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell cell-numeric",
+                            "children": [
+                              "_(currency(/appState/sheet/btcPrice))"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell cell-numeric cell-formula",
+                            "children": [
+                              "_(currency(/appState/sheet/btcQty * /appState/sheet/btcPrice))"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell cell-numeric cell-formula",
+                            "children": [
+                              "_(percent((/appState/sheet/btcQty * /appState/sheet/btcPrice) / (/appState/sheet/btcQty * /appState/sheet/btcPrice + /appState/sheet/ethQty * /appState/sheet/ethPrice + /appState/sheet/solQty * /appState/sheet/solPrice + /appState/sheet/usdcQty * /appState/sheet/usdcPrice), 1))"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell cell-index",
+                            "children": [
+                              "3"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell",
+                            "children": [
+                              "Ethereum (ETH)"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell cell-numeric",
+                            "children": [
+                              "_(/appState/sheet/ethQty)"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell cell-numeric",
+                            "children": [
+                              "_(currency(/appState/sheet/ethPrice))"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell cell-numeric cell-formula",
+                            "children": [
+                              "_(currency(/appState/sheet/ethQty * /appState/sheet/ethPrice))"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell cell-numeric cell-formula",
+                            "children": [
+                              "_(percent((/appState/sheet/ethQty * /appState/sheet/ethPrice) / (/appState/sheet/btcQty * /appState/sheet/btcPrice + /appState/sheet/ethQty * /appState/sheet/ethPrice + /appState/sheet/solQty * /appState/sheet/solPrice + /appState/sheet/usdcQty * /appState/sheet/usdcPrice), 1))"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell cell-index",
+                            "children": [
+                              "4"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell",
+                            "children": [
+                              "Solana (SOL)"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell cell-numeric",
+                            "children": [
+                              "_(/appState/sheet/solQty)"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell cell-numeric",
+                            "children": [
+                              "_(currency(/appState/sheet/solPrice))"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell cell-numeric cell-formula",
+                            "children": [
+                              "_(currency(/appState/sheet/solQty * /appState/sheet/solPrice))"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell cell-numeric cell-formula",
+                            "children": [
+                              "_(percent((/appState/sheet/solQty * /appState/sheet/solPrice) / (/appState/sheet/btcQty * /appState/sheet/btcPrice + /appState/sheet/ethQty * /appState/sheet/ethPrice + /appState/sheet/solQty * /appState/sheet/solPrice + /appState/sheet/usdcQty * /appState/sheet/usdcPrice), 1))"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell cell-index",
+                            "children": [
+                              "5"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell",
+                            "children": [
+                              "USDC (Stable)"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell cell-numeric",
+                            "children": [
+                              "_(/appState/sheet/usdcQty)"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell cell-numeric",
+                            "children": [
+                              "_(currency(/appState/sheet/usdcPrice))"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell cell-numeric cell-formula",
+                            "children": [
+                              "_(currency(/appState/sheet/usdcQty * /appState/sheet/usdcPrice))"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell cell-numeric cell-formula",
+                            "children": [
+                              "_(percent((/appState/sheet/usdcQty * /appState/sheet/usdcPrice) / (/appState/sheet/btcQty * /appState/sheet/btcPrice + /appState/sheet/ethQty * /appState/sheet/ethPrice + /appState/sheet/solQty * /appState/sheet/solPrice + /appState/sheet/usdcQty * /appState/sheet/usdcPrice), 1))"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell cell-index",
+                            "children": [
+                              "6"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell"
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell"
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell"
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell"
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell"
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell cell-index",
+                            "children": [
+                              "7"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell",
+                            "children": [
+                              "PORTFOLIO TOTAL"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell"
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell"
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell cell-numeric cell-formula",
+                            "children": [
+                              "_(currency(/appState/sheet/btcQty * /appState/sheet/btcPrice + /appState/sheet/ethQty * /appState/sheet/ethPrice + /appState/sheet/solQty * /appState/sheet/solPrice + /appState/sheet/usdcQty * /appState/sheet/usdcPrice))"
+                            ]
+                          }
+                        },
+                        {
+                          "div": {
+                            "class": "cell cell-numeric",
+                            "children": [
+                              "100.0%"
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

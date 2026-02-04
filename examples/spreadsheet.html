@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoSheet | Reactive cDOM Spreadsheet</title>
+    <script src="https://unpkg.com/expr-eval@2.0.2/dist/bundle.min.js"></script>
+    <script src="../index.js"></script>
+    <link rel="stylesheet" href="spreadsheet.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@400;500;700&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <script>
+        const { state } = cDOM;
+        // simulator
+        setInterval(() => {
+            const s = state.get('appState');
+            if (s) {
+                s.sheet.btcPrice *= (1 + (Math.random() * 0.004 - 0.002));
+                s.sheet.ethPrice *= (1 + (Math.random() * 0.006 - 0.003));
+                s.sheet.solPrice *= (1 + (Math.random() * 0.010 - 0.005));
+                s.metadata.lastUpdate = new Date().toLocaleTimeString();
+                s.metadata.ticks++;
+            }
+        }, 1000);
+    </script>
+    <div src="./spreadsheet.cdom" style="display: contents"></div>
+</body>
+
+</html>

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>cDOM Persistence Test</title>
+    <script src="../index.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            margin-top: 0;
+        }
+
+        button {
+            padding: 8px 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app"></div>
+
+    <script>
+        // Define persistent signal
+        const count = signal(0, { name: 'count', storage: localStorage });
+
+        // Define persistent object state
+        const user = state({ name: 'Guest', settings: { theme: 'light' } }, { name: 'user', storage: localStorage });
+
+        // Component using the state
+        const App = () => ({
+            div: {
+                class: 'card',
+                children: [
+                    { h2: 'Persistence Test' },
+                    { p: `Count (Signal): =(/count)` },
+                    {
+                        button: {
+                            onclick: () => count.value++,
+                            children: 'Increment Count'
+                        }
+                    },
+                    { hr: {} },
+                    { p: `User Name: =(/user/name)` },
+                    { p: `User Theme: =(/user/settings/theme)` },
+                    {
+                        button: {
+                            onclick: () => user.name = 'User ' + Math.floor(Math.random() * 100),
+                            children: 'Change Name'
+                        }
+                    },
+                    {
+                        button: {
+                            onclick: () => user.settings.theme = (user.settings.theme === 'light' ? 'dark' : 'light'),
+                            children: 'Toggle Theme'
+                        }
+                    },
+                    { hr: {} },
+                    {
+                        button: {
+                            onclick: () => {
+                                localStorage.clear();
+                                location.reload();
+                            },
+                            children: 'Clear Storage & Reload'
+                        }
+                    }
+                ]
+            }
+        });
+
+        // Initialize cDOM
+        cDOM(App(), { target: '#app' });
+    </script>
+</body>
+
+</html>

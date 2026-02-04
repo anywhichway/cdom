@@ -41,6 +41,9 @@ build/Release
 node_modules/
 jspm_packages/
 
+# Project build output
+dist/
+
 # Snowpack dependency directory (https://snowpack.dev/)
 web_modules/
 
@@ -80,7 +83,6 @@ out
 
 # Nuxt.js build / generate output
 .nuxt
-dist
 
 # Gatsby files
 .cache/
@@ -137,3 +139,7 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+
+#Ignore vscode AI rules
+.github\instructions\codacy.instructions.md

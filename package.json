@@ -1,0 +1,37 @@
+{
+  "name": "cdom",
+  "version": "0.0.1",
+  "description": "Safe, reactive UIs based on JSON Pointer, XPath, JSON Schema",
+  "keywords": [
+    "JPRX",
+    "JSON",
+    "cDOM",
+    "XPath"
+  ],
+  "homepage": "https://github.com/anywhichway/cdom#readme",
+  "bugs": {
+    "url": "https://github.com/anywhichway/cdom/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anywhichway/cdom.git"
+  },
+  "license": "MIT",
+  "author": "Simon Y Blackwell",
+  "type": "commonjs",
+  "main": "index.js",
+  "directories": {
+    "example": "examples"
+  },
+  "scripts": {
+    "dev": "wrangler pages dev . --port 3001",
+    "preview": "npm run build && wrangler pages dev ./dist --port 8788",
+    "build": "node build.js",
+    "watch": "nodemon --watch index.js --watch helpers --watch examples --ext js,html,css,cdom --exec \"npm run build\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11",
+    "wrangler": "^4.62.0"
+  }
+}

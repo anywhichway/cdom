@@ -1,0 +1,72 @@
+<html>
+<script src="https://unpkg.com/expr-eval@2.0.2/dist/bundle.min.js"></script>
+<script src="../index.js"></script>
+
+<body>
+    <script>
+        const { $, _ } = cDOM;
+        cDOM.helper('increment', (ref) => {
+            if (ref && typeof ref === 'object' && 'value' in ref) ref.value++;
+            else if (ref && typeof ref === 'object' && ref.count !== undefined) ref.count++;
+            return ref;
+        });
+
+        cDOM.helper('log', (...args) => {
+            console.log(...args);
+            return args[0];
+        });
+
+        // Set global fallback using cDOM.state
+        cDOM.state('Scratch App', { name: 'appName' });
+
+        cDOM({
+            div: {
+                oncreate: function () {
+                    cDOM.state({ count: 10 }, { name: 'localCounter', scope: this });
+                    console.log('App created! State initialized.', this);
+                },
+                onmount: function () {
+                    console.log('App mounted to DOM!', this);
+                },
+                children: [
+                    "App Name: ", "_(/appName)", { br: {} },
+                    "Local Counter (Scoped): ", "_(/localCounter/count)",
+                    {
+                        button: {
+                            onclick: "_(log(increment(/localCounter), 'Clicked on:', $this, 'Event:', $event.type))",
+                            children: ["Increment Local & Log"]
+                        }
+                    },
+                    {
+                        div: {
+                            children: [
+                                { br: {} },
+                                "This div can also see the local counter: ", "_(./localCounter/count)",
+                                { br: {} },
+                                { br: {} },
+                                "Math expression (./localCounter/count * 2 + 5): ", "_(./localCounter/count * 2 + 5)",
+                                { br: {} },
+                                "Math expression as function (count * 2 + 5): ", _('/localCounter/count * 2 + 5'),
+                                { br: {} },
+                                {
+                                    div: {
+                                        style: "margin-top: 10px; color: #666; font-size: 0.9em;",
+                                        children: [
+                                            "XPath (Active Button Count): ", $('count(//button)'), { br: {} },
+                                            "XPath (Button Label): ", "$(//button/text())", { br: {} },
+                                            "Dynamic Helper (sum(1,2,3)): ", "_(sum(1, 2, 3))", { br: {} },
+                                            "Dynamic Helper (currency(count)): ", "_(currency(/localCounter/count))", { br: {} },
+                                            "Undefined Helper: ", "_(This.Should.Not.Exist())"
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        }, {})
+    </script>
+</body>
+
+</html>
