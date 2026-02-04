@@ -22,9 +22,9 @@ cDOM is a reactive framework that lets you build dynamic UIs using declarative o
 
 ```html
 <!-- Optional: Math expression parser -->
-<script src="https://unpkg.com/expr-eval@2.0.2/dist/bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/expr-eval/dist/bundle.min.js"></script>
 <!-- cDOM library -->
-<script src="https://unpkg.com/cdom/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cdom/index.min.js"></script>
 ```
 
 **Note:** `expr-eval` is optional. cDOM will function without it, but support for complex math expressions and reactive logic within `_()` and `set()` helper calls will be unavailable.
@@ -34,7 +34,7 @@ cDOM is a reactive framework that lets you build dynamic UIs using declarative o
 Download `cdom.js` and include it in your project:
 
 ```html
-<script src="https://unpkg.com/expr-eval@2.0.2/dist/bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/expr-eval/dist/bundle.min.js"></script>
 <script src="path/to/cdom.js"></script>
 ```
 
@@ -44,8 +44,8 @@ Download `cdom.js` and include it in your project:
 
 ```html
 <html>
-<script src="https://unpkg.com/expr-eval@2.0.2/dist/bundle.min.js"></script>
-<script src="./cdom.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/expr-eval/dist/bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cdom/index.min.js"></script>
 
 <body>
     <script>
@@ -76,8 +76,8 @@ cDOM will replace the script is runs in if an emty options object is provided, j
 
 ```html
 <html>
-<script src="https://unpkg.com/expr-eval@2.0.2/dist/bundle.min.js"></script>
-<script src="https://unpkg.com/cdom/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/expr-eval/dist/bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cdom/index.min.js"></script>
 
 <body>
     <script>
@@ -425,8 +425,8 @@ When `_()` is used a string in a cDOM it establishes reatcive context and calls 
 
 ```html
 <html>
-<script src="https://unpkg.com/expr-eval@2.0.2/dist/bundle.min.js"></script>
-<script src="./cdom.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/expr-eval/dist/bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cdom/index.min.js"></script>
 
 <body>
     <script>
