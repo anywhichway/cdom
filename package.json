@@ -1,6 +1,6 @@
 {
   "name": "cdom",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Safe, reactive UIs based on JSON Pointer, XPath, JSON Schema",
   "keywords": [
     "JPRX",
@@ -23,6 +23,14 @@
   "directories": {
     "example": "examples"
   },
+  "files": [
+    "index.js",
+    "cdom.js",
+    "helpers/",
+    "examples/",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "dev": "wrangler pages dev . --port 3001",
     "preview": "npm run build && wrangler pages dev ./dist --port 8788",
