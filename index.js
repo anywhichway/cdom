@@ -609,8 +609,12 @@
                         args[i] = argVal;
                     }
                 }
-                const result = fn(...args);
-                return result;
+                try {
+                    return fn(...args);
+                } catch (e) {
+                    console.error(`[cDOM] Helper error in "${funcName}":`, e, { expression, contextNode: ctx });
+                    return `_(${expression})`;
+                }
             };
         }
 
@@ -618,7 +622,12 @@
         if (/[+\-*%^<>=!&|?:]/.test(expr)) {
             return (ctx, ev) => {
                 if (!mathParser && typeof globalThis.exprEval !== 'undefined') {
-                    mathParser = new globalThis.exprEval.Parser();
+                    try {
+                        mathParser = new globalThis.exprEval.Parser();
+                    } catch (e) {
+                        console.error("[cDOM] Failed to initialize expr-eval parser:", e);
+                        return `_(${expression})`;
+                    }
                 }
                 if (!mathParser) return expr;
                 try {
@@ -632,7 +641,10 @@
                         return id;
                     });
                     return mathParser.evaluate(processedExpr, scope);
-                } catch (e) { return `[Math Error]`; }
+                } catch (e) {
+                    console.error(`[cDOM] Math Error in "${expression}":`, e, { contextNode: ctx });
+                    return `_(${expression})`;
+                }
             };
         }
 
@@ -774,6 +786,7 @@
 
             return { type: 'value', value: elements.map(el => el.textContent || '').join(', ') };
         } catch (e) {
+            console.error(`[cDOM] CSS Error: "${selector}"`, e, { contextNode });
             return { type: 'value', value: `[CSS Error: ${selector}]` };
         }
     }
@@ -809,6 +822,7 @@
                 default: return { type: 'value', value: '' };
             }
         } catch (e) {
+            console.error(`[cDOM] XPath Error: "${expression}"`, e, { contextNode });
             return { type: 'value', value: `[XPath Error: ${expression}]` };
         }
     }
@@ -945,7 +959,7 @@
                     continue;
                 } else if (key.startsWith('on')) {
                     if (typeof val === "string") {
-                        if (val.startsWith('_(') && val.endsWith(')')) {
+                        if ((val.startsWith('_(') || val.startsWith('=(')) && val.endsWith(')')) {
                             const expr = val.substring(2, val.length - 1);
                             el[key] = (event) => evaluateStateExpression(expr, el, event);
                         } else if (!wasString || unsafe) {
