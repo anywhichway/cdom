@@ -1082,13 +1082,26 @@
     // call with options to insert into the DOM
     const cDOM = (cdom, options, script = document.currentScript) => {
         const type = typeof cdom;
+        const wasString = type === 'string' || (options && options._wasString);
+        let cdomObj = cdom;
         if (type === 'string') {
-            cdom = JSON.parse(cdom);
+            cdomObj = JSON.parse(cdom);
         }
-        const dom = cdomToDOM(cdom, type === 'string', options?.unsafe, options?.context);
+
         if (options) {
             let { target = script, location = 'outerHTML' } = options;
-            location = location.toLowerCase();
+            if (typeof target === 'string') {
+                const targets = Array.from(document.querySelectorAll(target));
+                let firstRes = null;
+                for (let i = 0; i < targets.length; i++) {
+                    const res = cDOM(cdomObj, { ...options, target: targets[i], _wasString: wasString }, script);
+                    if (i === 0) firstRes = res;
+                }
+                return firstRes;
+            }
+
+            const dom = cdomToDOM(cdomObj, wasString, options.unsafe, options.context);
+            location = (location || 'outerHTML').toLowerCase();
             if (location === 'outerhtml') target.replaceWith(dom);
             else if (location === 'innerhtml') { target.replaceChildren(dom); }
             else if (location === 'beforebegin') { target.insertAdjacentElement('beforebegin', dom); }
@@ -1099,8 +1112,9 @@
                 if (!target.shadowRoot) target.attachShadow({ mode: 'open' });
                 target.shadowRoot.replaceChildren(dom);
             }
+            return dom;
         }
-        return dom;
+        return cdomToDOM(cdomObj, wasString);
     }
 
     // Standalone src/href handling

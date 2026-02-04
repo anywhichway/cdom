@@ -498,13 +498,21 @@ Converts cDOM object to DOM and optionally inserts it.
 **Parameters:**
 - `object`: cDOM object or JSON string
 - `options`: Optional configuration
-  - `target`: Element to insert into (default: `document.currentScript`)
+  - `target`: Element or CSS selector string (default: `document.currentScript`). If a selector matches multiple elements, the component will be instantiated for each.
   - `location`: Where to insert - `'innerHTML'`, `'outerHTML'`, `'beforeend'`, etc.
   - `unsafe`: Allow unsafe eval (default: `false`)
 
-**Returns:** DOM element
+**Returns:** The (first) created DOM element
 
 If an options object is provided, the default location will be outerHTML on the current script, i.e. replace the script. If you do not want to replace anything and just want the reactive element, DO NOT pass in an options object.
+
+```javascript
+// Target a specific element by ID
+cDOM({ h1: "Hello" }, { target: "#header" });
+
+// Target all elements with a class
+cDOM({ button: "Click Me" }, { target: ".action-buttons", location: "beforeend" });
+```
 
 ### `cDOM.state(value, options)` / `cDOM.signal(value, options)`
 
