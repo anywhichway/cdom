@@ -1,5 +1,11 @@
 (function () {
     /* global document, window, MutationObserver, queueMicrotask, XPathResult, Node, NodeFilter, globalThis, console, URL, fetch, setTimeout, clearTimeout */
+    const symbolicOperators = new Map([
+        ['+', 'add'], ['-', 'subtract'], ['*', 'multiply'], ['/', 'divide'],
+        ['==', 'eq'], ['!=', 'neq'], ['>', 'gt'], ['<', 'lt'], ['>=', 'gte'], ['<=', 'lte'],
+        ['&&', 'and'], ['||', 'or'], ['!', 'not'], ['++', 'increment'], ['--', 'decrement']
+    ]);
+
     const registry = new Map();
     const listeners = new Map();
     const helpers = new Map();
@@ -600,6 +606,7 @@
 
             // Ensure we always have a stable node for the subscriber
             let newNode = cdomToDOM(result, wasString, unsafe, contextNode);
+            if (!newNode) newNode = document.createTextNode('');
             if (newNode && newNode.nodeType === 11) { // Fragment
                 const wrap = document.createElement('span');
                 wrap.style.display = 'contents';
@@ -677,16 +684,8 @@
         return evaluateExpression(expression, contextNode, true, '$').value;
     };
 
-    helpers.set('_', (...args) => {
-        const expr = args[0];
-        const ctx = currentSubscriber?.contextNode || args[1];
-        return _(expr, ctx);
-    });
-    helpers.set('$', (...args) => {
-        const expr = args[0];
-        const ctx = currentSubscriber?.contextNode || args[1];
-        return $(expr, ctx);
-    });
+    // Legacy expression helpers removed in favor of structural reactivity
+
 
     // Transformation Helpers
     helpers.set('Integer', v => parseInt(v));
@@ -766,16 +765,96 @@
         set.add(sub);
     }
 
-    function scanForHelpers(expression) {
-        const helperRegex = /\b([\w.]+)\s*\(/g;
-        let match;
-        while ((match = helperRegex.exec(expression)) !== null) {
-            const name = match[1];
-            if (!['_', '$', 'if', 'else', 'for', 'while', 'switch', 'typeof', 'instanceof'].includes(name)) {
-                getHelper(name);
+
+    function evaluateStructural(obj, context, event) {
+        if (typeof obj !== 'object' || obj === null || obj.nodeType) return obj;
+        obj = unwrap(obj);
+
+        if (Array.isArray(obj)) {
+            return obj.map(item => evaluateStructural(item, context, event));
+        }
+
+        const keys = Object.keys(obj);
+        const key = keys[0];
+        if (!key) return obj;
+        const val = obj[key];
+
+        // 1. XPath / CSS
+        if (key === '$') {
+            if (currentSubscriber) {
+                currentSubscriber.structural = obj;
+                domListeners.add(currentSubscriber);
+            }
+            return evaluateExpression(val, context, false, '$', event).value;
+        }
+
+        // 2. State lookup or Math expression
+        if (key === '=') {
+            return evaluateStateExpression(val, context, event);
+        }
+
+        // 3. Helper call / Operator
+        const alias = symbolicOperators.get(key);
+        if (key.startsWith('=') || alias) {
+            const helperName = alias || key.slice(1);
+            const helperFn = getHelper(helperName);
+            if (helperFn) {
+                const args = Array.isArray(val) ? val : [val];
+                const resolvedArgs = args.map(arg => {
+                    const isPath = typeof arg === 'string' && (
+                        arg.startsWith('/') || arg.startsWith('./') || arg.startsWith('../') ||
+                        arg === '$this' || arg.startsWith('$this/') || arg.startsWith('$this.') ||
+                        arg === '$event' || arg.startsWith('$event/') || arg.startsWith('$event.')
+                    );
+
+                    if (isPath) {
+                        const mutationOperators = ['++', '--', 'increment', 'decrement'];
+                        if (mutationOperators.includes(key) || mutationOperators.includes(helperName) || helperFn.mutates) {
+                            const p = arg === '$this' ? '$this' : (arg === '$event' ? '$event' : (arg.startsWith('/') || arg.startsWith('./') || arg.startsWith('../') ? 'state' : null));
+                            if (p) {
+                                let path = arg;
+                                if (p === 'state') path = arg.replace(/^(\.\/|\/)/, '');
+                                return createPathFunction(path, p)(context, event);
+                            }
+                        }
+                        return evaluateStateExpression(arg, context, event);
+                    }
+                    if (typeof arg === 'object' && arg !== null && !arg.nodeType) {
+                        return evaluateStructural(arg, context, event);
+                    }
+                    return arg;
+                });
+                return helperFn.apply(context, resolvedArgs);
+            } else {
+                suspendSubscriber(helperName, currentSubscriber);
+                return `[Helper ${helperName} undefined]`;
             }
         }
+
+        // 4. Plain object: Deeply resolve properties
+        const result = {};
+        for (const k of keys) {
+            const v = obj[k];
+            const isPath = typeof v === 'string' && (
+                v === '$this' || v.startsWith('$this/') || v.startsWith('$this.') ||
+                v === '$event' || v.startsWith('$event/') || v.startsWith('$event.') ||
+                v.startsWith('/') || v.startsWith('./') || v.startsWith('../')
+            );
+
+            if (isPath) {
+                result[k] = evaluateStateExpression(v, context, event);
+            } else if (typeof v === 'object' && v !== null && !v.nodeType) {
+                result[k] = evaluateStructural(v, context, event);
+            } else {
+                result[k] = v;
+            }
+        }
+        return result;
     }
+
+    cDOM.operator = (symbol, helperName) => {
+        symbolicOperators.set(symbol, helperName);
+    };
 
     function findInScope(node, name) {
         let curr = node;
@@ -868,39 +947,7 @@
     }
 
     function extractExpressions(text) {
-        if (expressionCache.has(text)) return expressionCache.get(text);
-
-        const expressions = [];
-        let i = 0;
-        while (i < text.length) {
-            const char = text[i];
-            if ((char === '$' || char === '_' || char === '#' || char === '=') && text[i + 1] === '(') {
-                // Normalize aliases: # -> $, = -> _
-                const type = (char === '#') ? '$' : (char === '=') ? '_' : char;
-                const start = i;
-                i += 2;
-                let depth = 1;
-                let expr = '';
-
-                while (i < text.length && depth > 0) {
-                    if (text[i] === '(') depth++;
-                    else if (text[i] === ')') depth--;
-
-                    if (depth > 0) expr += text[i];
-                    i++;
-                }
-
-                if (depth === 0) {
-                    const match = { type, start, end: i, expression: expr, fullMatch: text.substring(start, i) };
-                    expressions.push(match);
-                    if (type === '_') scanForHelpers(expr);
-                }
-            } else {
-                i++;
-            }
-        }
-        expressionCache.set(text, expressions);
-        return expressions;
+        return []; // Legacy expressions disabled
     }
 
     function isXPath(expression) {
@@ -981,7 +1028,21 @@
                 domListeners.delete(sub);
                 continue;
             }
-            if (sub.attr) {
+            if (sub.structural) {
+                currentSubscriber = sub;
+                const result = evaluateStructural(sub.structural, sub.contextNode);
+                currentSubscriber = null;
+                const newValue = String(result ?? '');
+                if (sub.node instanceof Attr) {
+                    if (sub.node.ownerElement.getAttribute(sub.node.name) !== newValue) {
+                        sub.node.ownerElement.setAttribute(sub.node.name, newValue);
+                    }
+                } else {
+                    if (sub.node.nodeValue !== newValue) {
+                        sub.node.nodeValue = newValue;
+                    }
+                }
+            } else if (sub.attr) {
                 const expressions = extractExpressions(sub.attr.value);
                 let newValue = sub.attr.originalValue || sub.attr.value;
                 for (const expr of expressions) {
@@ -1005,6 +1066,7 @@
 
     function cdomToDOM(onode, wasString, unsafe, context) {
         if (onode === null || onode === undefined) return null;
+        onode = unwrap(onode);
 
         if (typeof onode === 'function') {
             const placeholder = document.createComment('fx');
@@ -1030,9 +1092,7 @@
         }
 
         if (typeof onode !== 'object') {
-            const node = document.createTextNode(onode);
-            processTextNode(node, context, wasString, unsafe);
-            return node;
+            return document.createTextNode(onode);
         }
 
         if (Array.isArray(onode)) {
@@ -1044,205 +1104,95 @@
             return frag;
         }
 
-        let tag;
-        for (tag in onode) break;
+        if (onode.nodeType) return onode;
+
+        const keys = Object.keys(onode);
+        if (keys.length === 1 && (keys[0] === '=' || keys[0] === '$' || keys[0].startsWith('=') || symbolicOperators.has(keys[0]))) {
+            const placeholder = document.createTextNode('');
+            const sub = {
+                node: placeholder,
+                contextNode: context,
+                fn: (event) => evaluateStructural(onode, context, event),
+                wasString,
+                unsafe
+            };
+            placeholder._lv_sub = sub;
+            currentSubscriber = sub;
+            const result = sub.fn();
+            currentSubscriber = null;
+
+            if (result && typeof result === 'object' && !Array.isArray(result) && !result.nodeType) {
+                if (Object.keys(result).length > 0) {
+                    const dom = cdomToDOM(result, wasString, unsafe, context);
+                    if (dom) {
+                        sub.node = dom;
+                        dom._lv_sub = sub;
+                        return dom;
+                    }
+                }
+            }
+            placeholder.nodeValue = String(result ?? '');
+            return placeholder;
+        }
+
+        const tag = keys[0];
         if (!tag) return document.createDocumentFragment();
 
         const content = onode[tag];
         const el = document.createElement(tag);
         if (context) Object.defineProperty(el, '_lv_parent', { value: context, enumerable: false, configurable: true });
 
-        // Path A: Properties Object (Detailed definitions)
-        if (typeof content === 'object' && content !== null && !Array.isArray(content)) {
-            if (content.oncreate) {
-                const val = content.oncreate;
-                if (typeof val === "string" && (val.startsWith('_(') || val.startsWith('=('))) {
-                    // Remove trailing semicolon if present
-                    const trimmed = val.trim().replace(/;$/, '');
-                    if (trimmed.endsWith(')')) {
-                        const expr = trimmed.substring(2, trimmed.length - 1);
-                        try { evaluateStateExpression(expr, el); } catch (e) { /* ignore */ }
-                    }
-                } else if (typeof val === 'function') {
-                    try { val.call(el); } catch (e) { /* ignore */ }
-                }
-            }
-            if (content.onmount) {
-                const val = content.onmount;
-                if (typeof val === "string" && (val.startsWith('_(') || val.startsWith('=(')) && val.endsWith(')')) {
-                    const expr = val.substring(2, val.length - 1);
-                    el.onmount = () => {
-                        try { evaluateStateExpression(expr, el); } catch (e) { /* ignore */ }
-                    };
-                } else {
-                    el.onmount = content.onmount;
-                }
-            }
-
+        if (typeof content === 'object' && content !== null && !Array.isArray(content) && !content.nodeType) {
             for (const key in content) {
                 const val = content[key];
                 if (key === 'children') {
-                    if (Array.isArray(val)) {
-                        const len = val.length;
-                        if (len > 1) {
-                            const frag = document.createDocumentFragment();
-                            for (let i = 0; i < len; i++) {
-                                const childNode = cdomToDOM(val[i], wasString, unsafe, el);
-                                if (childNode) frag.appendChild(childNode);
-                            }
-                            el.appendChild(frag);
-                        } else if (len === 1) {
-                            const childNode = cdomToDOM(val[0], wasString, unsafe, el);
-                            if (childNode) el.appendChild(childNode);
-                        }
-                    } else {
-                        const childNode = cdomToDOM(val, wasString, unsafe, el);
+                    const children = Array.isArray(val) ? val : [val];
+                    for (const child of children) {
+                        const childNode = cdomToDOM(child, wasString, unsafe, el);
                         if (childNode) el.appendChild(childNode);
                     }
                 } else if (key === 'class') {
                     el.className = val;
-                } else if (key === 'style' && typeof val === 'object' && val !== null && !Array.isArray(val)) {
+                } else if (key === 'style' && typeof val === 'object' && val !== null) {
                     for (const s in val) el.style[s] = val[s];
                 } else if (key === 'oncreate' || key === 'onmount') {
-                    continue;
+                    if (typeof val === 'function') {
+                        if (key === 'oncreate') try { val.call(el); } catch (e) { }
+                        else el.onmount = val;
+                    } else if (typeof val === 'object' && val !== null) {
+                        if (key === 'oncreate') try { evaluateStructural(val, el); } catch (e) { }
+                        else el.onmount = () => evaluateStructural(val, el);
+                    }
                 } else if (key.startsWith('on')) {
-                    if (typeof val === "string") {
-                        if ((val.startsWith('_(') || val.startsWith('=(')) && val.endsWith(')')) {
-                            const expr = val.substring(2, val.length - 1);
-                            el[key] = (event) => evaluateStateExpression(expr, el, event);
-                        } else if (!wasString || unsafe) {
-                            try { el[key] = new Function("event", val); } catch (e) { el.setAttribute(key, val); }
-                        } else { el.setAttribute(key, val); }
-                    } else { el[key] = val; }
+                    if (typeof val === 'function') {
+                        el[key] = val;
+                    } else if (typeof val === 'object' && val !== null) {
+                        el[key] = (event) => evaluateStructural(val, el, event);
+                    }
                 } else {
-                    el.setAttribute(key, val);
-                    const hasExpr = typeof val === 'string' && (val.includes('$(') || val.includes('_(') || val.includes('#(') || val.includes('=('));
-                    if (hasExpr) {
-                        processAttribute(el, el.getAttributeNode(key));
+                    if (typeof val === 'object' && val !== null) {
+                        const sub = { node: el, contextNode: el, fn: (event) => evaluateStructural(val, el, event) };
+                        currentSubscriber = sub;
+                        const initial = sub.fn();
+                        currentSubscriber = null;
+                        el.setAttribute(key, String(initial ?? ''));
+                    } else {
+                        el.setAttribute(key, val);
                     }
                 }
             }
-        }
-        // Path B: Direct Content (Shorthand or template)
-        else {
-            if (typeof content === 'function') {
-                const dom = cdomToDOM(content, wasString, unsafe, el);
-                if (dom) el.appendChild(dom);
-            } else if (Array.isArray(content)) {
-                const len = content.length;
-                if (len > 1) {
-                    const frag = document.createDocumentFragment();
-                    for (let i = 0; i < len; i++) {
-                        const childNode = cdomToDOM(content[i], wasString, unsafe, el);
-                        if (childNode) frag.appendChild(childNode);
-                    }
-                    el.appendChild(frag);
-                } else if (len === 1) {
-                    const childNode = cdomToDOM(content[0], wasString, unsafe, el);
-                    if (childNode) el.appendChild(childNode);
-                }
-            } else if (content !== undefined && content !== null) {
-                const childNode = cdomToDOM(content, wasString, unsafe, el);
-                if (childNode) el.appendChild(childNode);
-            }
+        } else {
+            const childNode = cdomToDOM(content, wasString, unsafe, el);
+            if (childNode) el.appendChild(childNode);
         }
 
         return el;
     }
 
-    function processAttribute(element, attr) {
-        const expressions = extractExpressions(attr.value);
-        if (expressions.length === 0) return;
-        if (!attr.originalValue) attr.originalValue = attr.value;
-
-        let newValue = attr.value;
-        for (const expr of expressions) {
-            if (expr.type === '_') {
-                if (!attr._lv_sub) attr._lv_sub = { node: attr, attr, contextNode: element };
-                currentSubscriber = attr._lv_sub;
-                currentSubscriber.expression = expr.expression;
-                const res = evaluateStateExpression(expr.expression, element);
-                newValue = newValue.replace(expr.fullMatch, String(res));
-                currentSubscriber = null;
-            } else {
-                const res = evaluateExpression(expr.expression, element, false, '$');
-                newValue = newValue.replace(expr.fullMatch, String(res.value));
-                domListeners.add({ node: attr, attr, contextNode: element });
-            }
-        }
-        element.setAttribute(attr.name, newValue);
-    }
-
-    function processTextNode(textNode, context, wasString, unsafe) {
-        const text = textNode.nodeValue;
-        if (!text || (!text.includes('$(') && !text.includes('_(') && !text.includes('#(') && !text.includes('=('))) return;
-
-        const expressions = extractExpressions(text);
-        if (expressions.length === 0) return;
-
-        const parent = context || textNode.parentNode || textNode.parentElement;
-        const trimmedText = text.trim();
-
-        // Special case: single expression that might return a cDOM object
-        if (expressions.length === 1 && expressions[0].fullMatch.trim() === trimmedText) {
-            const expr = expressions[0];
-            if (expr.type === '_') {
-                if (!textNode._lv_sub) textNode._lv_sub = { node: textNode, expression: expr.expression, contextNode: parent, wasString, unsafe };
-                currentSubscriber = textNode._lv_sub;
-                const result = evaluateStateExpression(expr.expression, parent);
-                const isCDOM = result && typeof result === 'object' && !Array.isArray(result) && !result.nodeType && !('value' in result);
-                if (isCDOM) {
-                    const dom = cdomToDOM(result, wasString, unsafe, parent);
-                    textNode.replaceWith(dom);
-                    textNode._lv_sub.node = dom;
-                    dom._lv_sub = textNode._lv_sub;
-                } else {
-                    const newValue = String((result && typeof result === 'object' && 'value' in result) ? result.value : result);
-                    if (textNode.nodeValue !== newValue) textNode.nodeValue = newValue;
-                }
-                currentSubscriber = null;
-            } else {
-                const result = evaluateExpression(expr.expression, parent, true, '$');
-                if (result.type === 'nodes') {
-                    const fragment = document.createDocumentFragment();
-                    for (const n of result.value) {
-                        try { fragment.appendChild(n.cloneNode(true)); } catch (e) { /* ignore */ }
-                    }
-                    const container = document.createElement('span');
-                    container.style.display = 'contents';
-                    container.appendChild(fragment);
-                    textNode.replaceWith(container);
-                    domListeners.add({ node: container, expression: expr.expression, contextNode: parent, wasString, unsafe });
-                } else {
-                    const newValue = String(result.value);
-                    if (textNode.nodeValue !== newValue) textNode.nodeValue = newValue;
-                    if (!domListeners.has(textNode)) {
-                        domListeners.add({ node: textNode, expression: expr.expression, contextNode: parent, wasString, unsafe });
-                    }
-                }
-            }
-        } else {
-            // General case: evaluate and replace multiple expressions (always results in string)
-            if (!textNode.originalValue) textNode.originalValue = text;
-            let currentText = text;
-            for (const expr of expressions) {
-                const res = evaluateExpression(expr.expression, parent, false, expr.type);
-                currentText = currentText.replace(expr.fullMatch, String(res.value));
-                if (expr.type === '_') {
-                    // For state expressions in mixed text, we use a subscriber that updates the whole node
-                    registerDependency(expr.expression.split('/')[1]); // Simple dependency registration
-                    listeners.get(expr.expression.split('/')[1])?.add({ node: textNode, contextNode: parent, wasString, unsafe });
-                } else {
-                    domListeners.add({ node: textNode, contextNode: parent, wasString, unsafe });
-                }
-            }
-            textNode.nodeValue = currentText;
-        }
-    }
-
     // call with no options when using to simply construct a DOM element
+
     // call with options to insert into the DOM
-    const cDOM = (cdom, options, script = document.currentScript) => {
+    function cDOM(cdom, options, script = document.currentScript) {
         const type = typeof cdom;
         const wasString = type === 'string' || (options && options._wasString);
         let cdomObj = cdom;
@@ -1403,6 +1353,21 @@
     helpers.set('state', state);
     helpers.set('signal', signal);
 
+    // Default Operator Mappings
+    cDOM.operator('+', 'add');
+    cDOM.operator('-', 'subtract');
+    cDOM.operator('*', 'multiply');
+    cDOM.operator('/', 'divide');
+    cDOM.operator('==', 'eq');
+    cDOM.operator('>', 'gt');
+    cDOM.operator('<', 'lt');
+    cDOM.operator('&&', 'and');
+    cDOM.operator('||', 'or');
+    cDOM.operator('!', 'not');
+    cDOM.operator('++', 'increment');
+    cDOM.operator('--', 'decrement');
+
+
     const observer = new MutationObserver((mutations) => {
         let changed = false;
         for (const mutation of mutations) {
@@ -1464,4 +1429,17 @@
         attributes: true,
         characterData: true
     });
+    // Export to global scope
+    cDOM.signal = signal;
+    cDOM.state = state;
+    cDOM.helper = helper;
+    cDOM.schema = schema;
+    cDOM.validate = validate;
+    cDOM._ = _;
+    cDOM.$ = $;
+    cDOM.script = document.currentScript;
+
+    globalThis.cDOM = cDOM;
+    globalThis._ = _;
+    globalThis.$ = $;
 })();

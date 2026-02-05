@@ -1,18 +1,21 @@
 # cDOM - Computational DOM
 
-**A reactive UI library with hypermedia capabilities with JPRX support (reactive JSON Pointers and XPath) plus JSON Schema validation and state persistence.**
+> **⚠️ EXPERIMENTAL**: cDOM is currently in version v0.0.10. The syntax and API are rapidly evolving and may change without notice. Use with caution.
 
-cDOM is a reactive framework that lets you build dynamic UIs using declarative object notation. Originally based on [Lightview](https://github.com/anywhichway/lightview), cDOM provides a focused subset of features for developers who want reactivity and hypermedia without the full framework.
+**A reactive UI library with hypermedia capabilities with modified JPRX support (reactive JSON Pointers and XPath) plus JSON Schema validation and state persistence.**
+
+cDOM is a reactive framework that lets you build dynamic UIs using declarative object notation. Uniquely, cDOM uses **structural reactivity**, where logic is defined via JSON structure rather than string parsing.
 
 ## Features
 
 - 🎯 **Reactive State Management** - Signals and state with automatic dependency tracking
 - 🔄 **Declarative UI** - Build interfaces using simple JavaScript objects
+- 🧱 **Structural Reactivity** - Define complex logic using nested objects `{ "=": ... }`
 - 🛡️ **Schema Validation** - Built-in JSON Schema validation for robust state
 - 💾 **Persistence** - Automatic sync to `localStorage` or `sessionStorage`
 - 🌐 **Hypermedia Support** - `src` and `href` attributes for dynamic content loading
-- 📊 **XPath & CSS Queries** - Navigate and query the DOM with reactive `$()` expressions
-- 🧮 **Safe Expression Engine** - Built-in secure parser for reactive calculations `_()`
+- 📊 **XPath & CSS Queries** - Navigate and query the DOM with reactive `{ "$": ... }` expressions
+- 🧮 **Direct Operator Support** - Use operators like `*`, `+`, `>=` directly in your structure
 - 🪶 **Lightweight** - ~15KB minified, ZERO dependencies
 - 🔌 **Standalone** - Works independently of Lightview
 
@@ -43,17 +46,20 @@ Download `cdom.js` and include it in your project:
 
 <body>
     <script>
+        // Register helper
+        cDOM.helper('increment', (s) => { if(s && typeof s.count === 'number') s.count++; return s.count; });
+
         // Create a simple counter
         cDOM({
             div: {
-                oncreate: function() {
-                    cDOM.state({ count: 0 }, { name: 'counter', scope: this });
+                oncreate: {
+                     "=state": [{ count: 0 }, { name: 'counter', scope: "$this" }]
                 },
                 children: [
                     { h2: "Counter Example" },
-                    { p: ["Count: ", "_(/counter/count)"] },
+                    { p: ["Count: ", { "=": "/counter/count" }] },
                     { button: { 
-                        onclick: "_(++/counter/count)", 
+                        onclick: { "=increment": ["/counter"] }, 
                         children: ["Increment"] 
                     }}
                 ]
@@ -64,154 +70,145 @@ Download `cdom.js` and include it in your project:
 </html>
 ```
 
-### Inline Usage
-
-cDOM will replace the script is runs in if an emty options object is provided, just put the script where you want the HTML.
-
-```html
-<html>
-<script src="https://cdn.jsdelivr.net/npm/cdom/index.min.js"></script>
-
-<body>
-    <script>
-        // Create a simple counter
-        cDOM({
-            div: {
-                oncreate: function() {
-                    cDOM.state({ count: 0 }, { name: 'counter', scope: this });
-                },
-                children: [
-                    { h2: "Counter Example" },
-                    { p: ["Count: ", "_(/counter/count)"] },
-                    { button: { 
-                        onclick: "_(++/counter/count)", 
-                        children: ["Increment"] 
-                    }}
-                ]
-            }
-        }, { });
-    </script>
-</body>
-</html>
-```
-
-**Resulting DOM (as seen in DevTools):**
-
-```html
-<body>
-    <div>
-        <h2>Counter Example</h2>
-        <p>Count: 0</p>
-        <button onclick="_(++/counter/count)">Increment</button>
-    </div>
-</body>
-```
-
-
 ### Component Functions
 
-Create reusable components as functions. Components can either return a rendered DOM element by calling `cDOM()` internally (without options), or return a raw oDOM object to be processed by a parent container.
-
-**Option A: Returning a rendered element**
+Create reusable components as functions.
 
 ```javascript
-const { state } = cDOM;
 function Counter(initialValue = 0) {
-    // Calling cDOM() here returns a ready-to-use DOM element
-    return cDOM({
+    return {
         div: {
             class: "counter-widget",
-            oncreate() {
-                state({ count: initialValue }, { name: 'local', scope: this });
+            // Use structural object for initialization
+            oncreate: {
+                 "=state": [{ count: initialValue }, { name: 'local', scope: "$this" }]
             },
             children: [
                 { h3: "Counter" },
-                { p: ["Current: ", "_(/local/count)"] },
-                { button: { onclick: "_(++/local/count)", children: ["+"] }}
+                { p: ["Current: ", { "=": "/local/count" }] },
+                // Structural event handler
+                { button: { 
+                     onclick: { "=increment": ["/local"] }, 
+                     children: ["+"] 
+                }}
             ]
         }
-    });
-}
-```
-
-**Option B: Deferring to a wrapper (Returning oDOM)**
-
-Alternatively, skip the `cDOM()` call to return a plain object. This is often cleaner for nesting components within larger structures.
-
-```javascript
-function Header(title) {
-    return { h1: title }; // Return raw oDOM
+    };
 }
 
 cDOM({
     div: [
-        Header("My App"),
-        Counter(0) // Works with either pattern!
+        { h1: "My App" },
+        Counter(0)
     ]
 }, {});
 ```
 
 ## Core Concepts
 
-### 1. Object DOM (oDOM) Syntax
+### 1. Structural Reactivity (The `=` Key)
 
-cDOM uses a concise object notation where the key is the tag name.The property 'children' is used to define the children of the element. All other properties are attributes. As a shortcut, if the value of a property is a string, it will be used as the text content of the element.
+cDOM v0.0.10 moves away from complex string parsing (`_()`) in favor of **structural reactivity**. You express logic using JSON keys starting with `=`.
+
+**State Lookup:**
+```javascript
+{ "=": "/user/name" } // Resolves to state value
+```
+
+**Math Expressions:**
+For simple math, you can still use string expressions inside the value:
+```javascript
+{ "=": "/price * /quantity" }
+```
+
+**Helper Calls:**
+Complex logic uses the key as the helper name:
+```javascript
+{ "=increment": ["/counter"] } // Calls 'increment' helper with resolving args
+```
+
+**Direct Operators:**
+You can use mathematical and logical operators directly as keys:
+```javascript
+{ "*": ["/price", "/qty"] }
+{ ">=": ["/age", 18] }
+```
+
+### 3. Sequential Actions (Array Handlers)
+
+Event handlers (`onclick`, `onmount`, `onchange`, etc.) can accept an **Array** of structural expressions. Each expression in the array will be executed sequentially. This is useful for performing multiple side-effects in a single interaction.
 
 ```javascript
 {
-    div: {
-        class: "container",
-        children: [
-            { h1: "Title" }, // shortcut for text content
-            { p: { children: ["Paragraph text"] } }
-        ]
+    button: {
+        onclick: [
+            { "set": ["/ui/loading", true] },
+            { "=analytics.track": ["save_clicked"] }, // Resolves via global path (window.analytics.track)
+            { "=saveData": "/form" },
+            { "set": ["/ui/status", "Saved!"] },
+            { "set": ["/ui/loading", false] }
+        ],
+        children: ["Save Now"]
     }
 }
 ```
 
-### 2. Signals and State
+### 4. DOM Queries (The `$` Key)
 
-#### Creating Signals
+Query the DOM using XPath or CSS selectors via the `$` key.
 
-```javascript
-// Simple reactive value
-const count = cDOM.signal(0, { name: 'count' });
-
-// Update
-count.value = 5;
-```
-
-#### Creating State
+**Structural Usage (Reactive):**
+When used as a key in a cDOM object, queries are reactive to DOM changes using a `MutationObserver`. They will automatically update when nodes are added, removed, or attributes change.
 
 ```javascript
-// Global state
-cDOM.state({ user: 'Alice' }, { name: 'currentUser' });
+// XPath - Count buttons (updates automatically on DOM change)
+{ "$": "count(//button)" }
 
-// Scoped state (component-local)
-cDOM.state({ count: 0 }, { name: 'counter', scope: this });
+// CSS - Get value
+{ "$": "#myInput" }
 ```
 
-### Accessing Named Signals or State in Expressions
+**Functional Usage (Non-Reactive to DOM):**
+When used inside an expression string or directly in JavaScript, the query is a one-time evaluation. It will not re-run when the DOM changes, unless the surrounding expression is triggered by a state change.
 
 ```javascript
-// Absolute path (looks in global registry only)
-"_(/currentUser/user)"
-
-// Scoped path (searches current element, then bubbles up the DOM tree)
-"_(counter/count)" 
-// OR
-"_(./counter/count)"
-
-// With math
-"_(/price * /quantity + /shipping)"
-
-// Note: Explicit parent navigation `..` is NOT supported.
-// Ambiguity prevents distinguishing between "parent object data" and "parent DOM element data".
-// cDOM automatically bubbles up to find the nearest matching state name, so `..` is unnecessary.
-// Use unique state names to disambiguate if needed.
+// This counts buttons once, or when a state dependency triggers a re-eval
+{ "=": "count($('//button')) + 1" }
 ```
 
-### 3. Schema Validation
+> **Design Note: Why aren't all queries live?**
+> While making every `$(...)` call live would be convenient, it carries significant performance overhead. Structural reactivity (`{ "$": ... }`) allows the engine to explicitly track which elements are watching the DOM, preventing "mutation storms" and infinite loops while ensuring efficient memory cleanup.
+
+
+### 5. Signals and State
+
+#### Initialization
+
+Use the `state` helper in `oncreate`:
+
+```javascript
+oncreate: {
+  "=state": [
+    { user: 'Alice' }, 
+    { name: 'currentUser' } 
+  ]
+}
+```
+
+#### Scoped State
+
+Scope state to a specific component using the `$this` keyword in the options:
+
+```javascript
+oncreate: {
+  "=state": [
+    { count: 0 }, 
+    { name: 'counter', scope: "$this" } 
+  ]
+}
+```
+
+### 6. Schema Validation
 
 cDOM supports JSON Schema validation to ensure your state remains consistent.
 
@@ -227,367 +224,133 @@ cDOM.schema('User', {
 });
 
 // Apply to state
-const user = cDOM.state({ name: 'Bob', age: 25 }, { 
-    name: 'user', 
-    schema: 'User' 
-});
-
-user.age = -1; // Throws Validation Error
+oncreate: {
+    "=state": [
+        { name: 'Bob', age: 25 }, 
+        { name: 'user', schema: 'User' }
+    ]
+}
 ```
 
-### 4. Persistence
+### 7. Persistence
 
 Sync your signals and state automatically to `localStorage` or `sessionStorage`.
 
 ```javascript
 // Retrieve on every access, update on every change
-const theme = cDOM.signal('light', { 
-    name: 'site-theme', 
-    storage: localStorage 
-});
-
-// Works with complex objects too
-const settings = cDOM.state({ zoom: 1 }, { 
-    name: 'app-settings', 
-    storage: sessionStorage 
-});
-```
-
-### 5. Transformations
-
-Automatically cast incoming values using transformation helpers.
-
-```javascript
-const count = cDOM.signal(0, { 
-    name: 'count', 
-    transform: 'Integer' // Built-in: Integer, Number, String, Boolean
-});
-
-count.value = "10"; // Automatically becomes 10 (Number)
-```
-
-### 2. Reactivity with Functions
-
-### 3. Reactivity with `_()` Expressions
-
-State paths use `_()` for reactive binding:
-
-```javascript
-// String syntax (parsed by cDOM)
-"_(/user/name)"
-
-// Function syntax (for use in JavaScript)
-_('/user/name')  // Returns the expression string for lazy binding
-```
-
-This can be tranported as JSON:
-
-```javascript
-{"span": "_(/user/name)"}
-```
-
-This can't be transported as JSON:
-
-```javascript
-{span: _('/user/name')}
-```
-
-**Math expressions:**
- 
-The built-in secure parser handles math and logic operations natively.
-
-```javascript
-"_(/price * /quantity)"             // Reactive calculation (Global paths)
-_('./local/price * 1.1')            // Scoped path (requires ./ prefix)
-```
-
-**Important:** In math expressions, you **MUST** use either `/` (absolute) or `./` (scoped) prefixes for all state paths. This disambiguates state paths from mathematical division operators.
-
-**Note: No Inline Text Interpolation**
-
-In **Text Nodes**, expressions must be the *entire* content string. Granularity is enforced by using valid child arrays, **OR** by using string concatenation within the expression itself.
-
-*   ❌ `"Hello _(/name)"` (Will render literally, ignoring the expression)
-*   ✅ `["Hello ", "_(/name)"]` (Using child array - Recommended)
-*   ✅ `"_( 'Hello ' + /name )"` (Using string concatenation in math expression)
-*   ✅ `"_(concat('Hello ', /name))"` (Using concat helper)
-
-In **Attributes**, inline interpolation *is* supported because attributes cannot be split into children:
-*   ✅ `class="btn _(/isActive ? 'active' : '') text-lg"`
-*   ✅ `href="/users/_(/id)/profile"`
-
-### 4. DOM Queries with `$()` Expressions
-
-Query the DOM using XPath or CSS selectors:
-
-```javascript
-// XPath
-"$(count(//button))"              // Count all buttons
-$(//div[@id='main']/@class)     // Get class of #main
-
-// CSS (when not XPath)
-"$(.active)"                      // Query by class
-```
-
-DOM queries are reactive, if the DOM changes, the query will be re-evaluated.
-
-### 5. Lifecycle Hooks
-
-- **`oncreate`**: Called when element is created (before DOM insertion)
-- **`onmount`**: Called when element is added to the DOM
-
-```javascript
-{
-    div: {
-        oncreate() {
-            // Initialize state here
-            cDOM.state({ data: [] }, { name: 'myData', scope: this });
-        },
-        onmount() {
-            // DOM is ready, can access this element
-            console.log('Mounted:', this);
-        }
-    }
+oncreate: {
+    "=signal": [
+        'light', 
+        { name: 'site-theme', storage: localStorage }
+    ]
 }
 ```
 
-## Hypermedia Features
+### 8. Persistence & Transformations
 
-### The `src` Attribute
-
-Load content dynamically into any element:
-
-```html
-<!-- Load from CSS selector -->
-<div src="#template"></div>
-
-<!-- Load HTML file -->
-<div src="/components/header.html"></div>
-
-<!-- Load cDOM JSON -->
-<div src="/data/widget.cdom"></div>
-
-<!-- Load any text (displays in <pre>) -->
-<div src="/data/config.json"></div>
-```
-
-**Important:** For non-standard elements (anything other than `<img>`, `<script>`, etc.), src paths **MUST** start with `./`, `../`, or `/`. This ensures they are correctly identified as URLs and not CSS selectors.
-
-**Supported content types:**
-- `.cdom` / `application/cdom` → Parsed as cDOM JSON
-- `.html` / `text/html` → Inserted as HTML
-- Everything else → Displayed in `<pre>` tag
-
-### The `href` Attribute (Non-`<a>` Elements)
-
-Make any element clickable with navigation:
-
-```html
-<!-- Load content on click -->
-<button href="/api/data" target="#results">Load Data</button>
-
-<!-- Hash scrolling -->
-<button href="/docs.html#section-2">Jump to Section</button>
-```
-
-**Note:** Standard `<a>` tags always maintain their default browser behavior.
-
-
-## Helpers
-
-Register custom helper functions:
+Automatically cast incoming values or sync with storage.
 
 ```javascript
-const double = cDOM.helper('double',  (value) => value * 2);
-const greet = cDOM.helper('greet', (name) => `Hello, ${name}!`);
-
-// Use in expressions
-"_(double(/count))"
-"_(greet(/user/name))"
+cDOM.signal(0, { 
+    name: 'count', 
+    transform: 'Integer' // Built-in: Integer, Number, String, Boolean
+});
 ```
 
-// use directly in functions
-double(_('/user/name'))
+## Supported Operators and Helpers
+
+### Operators (Structural Keys)
+
+These can be used directly as keys in your cDOM structure (e.g., `{ "+": [1, 2] }`).
+
+*   **Math:** `+`, `-`, `*`, `/`, `%`
+*   **Comparison:** `==`, `!=`, `>`, `<`, `>=`, `<=`
+*   **Logic:** `&&`, `||`, `!` (unary)
+*   **Mutation:** `++`, `--`
+*   **Ternary:** `?`, `:`
+
+### Built-in Helpers
+
+Helpers are dynamically loaded if not already registered. You can use them structurally (e.g., `{ "=sum": [1, 2] }`) or within expression strings.
+
+#### Math & Statistics
+`abs`, `add`, `average`, `avg`, `ceil`, `ceiling`, `floor`, `int`, `max`, `median`, `min`, `mod`, `multiply`, `percent`, `pow`, `power`, `rand`, `random`, `round`, `sign`, `sqrt`, `stddev`, `stdev`, `subtract`, `sum`, `trunc`, `var`, `variance`
+
+#### Logic & Flow
+`and`, `or`, `not`, `if`, `ifs`, `switch`, `choose`, `coalesce`, `iferror`
+
+#### String Manipulation
+`concat`, `join`, `split`, `trim`, `upper`, `lower`, `proper`, `titlecase`, `tocamelcase`, `toslugcase`, `left`, `right`, `mid`, `len`, `length`, `slice`, `substring`, `replace`, `substitute`, `padend`, `padstart`, `startswith`, `endswith`, `includes`, `charat`, `text`, `textjoin`, `fixed`
+
+#### Array & Object
+`count`, `map`, `filter`, `reduce`, `every`, `some`, `find`, `findindex`, `sort`, `reverse`, `push`, `pop`, `first`, `last`, `unique`, `flat`, `keys`, `object`, `isarray`, `xlookup`
+
+#### Type Checking
+`isnumber`, `isstring`, `istext`, `isblank`, `isempty`, `isarray`
+
+#### Date & Time
+`now`, `today`, `day`, `month`, `year`, `weekday`, `datedif`
+
+#### Formatting
+`currency`, `tofixed`, `tolocalestring`
+
+#### State Mutation
+`set`, `assign`, `increment`, `decrement`, `clear`, `toggle`
+
+#### Network
+`fetch`, `webservice`
+
+### Defining Custom Helpers
+
+You can register custom helpers using `cDOM.helper(name, fn)`. 
+
+#### Mutation Helpers
+If a helper is designed to mutate state data (rather than just calculating a value), you **must** set the `.mutates = true` property on the function. This informs the cDOM parser to pass the underlying state reference (wrapper) rather than the unwrapped value, allowing the helper to perform the update.
+
+**Example: Custom Increment**
+```javascript
+const increment = function (target, by = 1) {
+    // target here is a state wrapper with a .value property
+    const current = (target && typeof target === 'object' && 'value' in target) ? target.value : 0;
+    target.value = Number(current) + Number(by);
+    return target.value;
+}
+
+// CRITICAL: Must flag as mutation for the parser to pass the state reference
+increment.mutates = true;
+
+cDOM.helper('myIncrement', increment);
 ```
 
-When `_()` is used a string in a cDOM it establishes reatcive context and calls to wrapped helpers do not need to wrap state paths in nested `_()`. When a helper is called directly it does not establish a reactive context, but it know how to handle reactive arguments.
-
-## Complete Example: Todo List
-
-```html
-<html>
-<script src="https://cdn.jsdelivr.net/npm/cdom/index.min.js"></script>
-
-<body>
-    <script>
-        const { state } = cDOM;
-        
-        // Create global state
-        const appState = state({ 
-            todos: [],
-            input: ''
-        }, { name: 'app' });
-
-        // Helper to add todo
-        const addTodo = () => {
-            if (!appState.input.trim()) return;
-            appState.todos.push({ 
-                text: appState.input, 
-                done: false 
-            });
-            appState.input = '';
-        });
-
-        // Helper to toggle todo
-        cDOM.helper('toggleTodo', (index) => {
-            appState.todos[index].done = !appState.todos[index].done;
-        });
-
-        // Helper to remove todo
-        cDOM.helper('removeTodo', (index) => {
-            appState.todos.splice(index, 1);
-        });
-
-        cDOM({
-            div: {
-                class: "todo-app",
-                children: [
-                    { h1: "Todo List" },
-                    { div: {
-                        children: [
-                            { input: { 
-                                type: "text",
-                                placeholder: "New todo...",
-                                value: _('/app/input'),
-                                oninput: "_(set(/app/input, $event.target.value))"
-                            }},
-                            { button: {
-                                onclick() { addTodo() },
-                                children: ["Add"]
-                            }}
-                        ]
-                    }},
-                    { ul: {
-                        id: "todo-list",
-                        children: _('/app/todos') // Reactive list rendering
-                    }}
-                ]
-            }
-        }, {});
-    </script>
-</body>
-</html>
+Usage in cDOM:
+```javascript
+{ button: { 
+    onclick: { "=myIncrement": ["/counter/count", 5] }, 
+    children: ["+5"] 
+}}
 ```
 
 ## API Reference
 
 ### `cDOM(object, options?)`
 
-Converts cDOM object to DOM and optionally inserts it.
-
-**Parameters:**
-- `object`: cDOM object or JSON string
-- `options`: Optional configuration
-  - `target`: Element or CSS selector string (default: `document.currentScript`). If a selector matches multiple elements, the component will be instantiated for each.
-  - `location`: Where to insert - `'innerHTML'`, `'outerHTML'`, `'beforeend'`, etc.
-  - `unsafe`: Allow unsafe eval (default: `false`)
-
-**Returns:** The (first) created DOM element
-
-If an options object is provided, the default location will be outerHTML on the current script, i.e. replace the script. If you do not want to replace anything and just want the reactive element, DO NOT pass in an options object.
-
-```javascript
-// Target a specific element by ID
-cDOM({ h1: "Hello" }, { target: "#header" });
-
-// Target all elements with a class
-cDOM({ button: "Click Me" }, { target: ".action-buttons", location: "beforeend" });
-```
-
-### `cDOM.state(value, options)` / `cDOM.signal(value, options)`
-
-Create reactive state or signals.
+Converts cDOM object to DOM.
 
 **Options:**
-- `name`: String. Required for persistence or global lookup.
-- `scope`: DOM element. Scope state to a specific tree (bubbles up).
-- `storage`: `localStorage` or `sessionStorage` (or custom object).
-- `schema`: String (named schema) or Object (inline schema).
-- `transform`: String (helper name) or Function.
+*   `target`: Element or CSS selector.
+*   `location`: Insertion position (`innerHTML`, `beforeend`, etc.).
+*   `unsafe`: Allow unsafe eval (default: `false`).
 
-### `cDOM.helper(name, function)`
+### `cDOM.operator(symbol, helperName)`
 
-Register a helper function for use in expressions or transformations.
-
-### `cDOM.schema(name, definition)`
-
-Register a JSON Schema for state validation.
-
-### `_(expression, contextNode?)`
-
-Evaluate state expression.
-
-**Parameters:**
-- `expression`: State path or expression
-- `contextNode`: Optional context element (omit for lazy binding)
-
-### `$(expression, contextNode?)`
-
-Evaluate DOM query (XPath or CSS).
-
-**Parameters:**
-- `expression`: XPath or CSS selector
-- `contextNode`: Optional context element (omit for lazy binding)
-
-## Expression Syntax
-
-### State Expressions `_()`
+Map a custom symbol to a helper function.
 
 ```javascript
-"_(/path/to/value)"           // Simple path
-"_(/a + /b)"                  // Math
-"_(/price * 1.1)"             // With literal
-"_(helper(/arg1, /arg2))"     // Helper function
-```
+// Map '^' to 'pow' helper
+cDOM.operator('^', 'pow'); 
 
-### Supported Expressions
-
-The built-in expression engine supports a safe subset of JavaScript. This ensures security by avoiding `eval()` while providing enough power for UI logic.
-
-**Supported:**
-*   **Math:** `+`, `-`, `*`, `/`, `%`
-*   **comparison:** `==`, `!=`, `<`, `>`, `<=`, `>=`
-*   **Logic:** `&&`, `||`, `!`
-*   **Ternary:** `condition ? trueVal : falseVal`
-*   **Grouping:** `( )`
-*   **Data Types:** Strings (`'hello'`, `"world"`), Numbers (`123`, `4.5`), Booleans (`true`, `false`), `null`
-*   **Objects & Arrays:** `{ key: val }`, `[1, 2, 3]`
-*   **Member Access:** `obj.prop`, `obj['key']`, `arr[0]`
-*   **Functions:** Calls to registered helpers (e.g., `sum(1, 2)`)
-
-**Unsupported (Use Helpers instead):**
-*   **Assignment/Mutation:** `=`, `+=`, `-=`, `++`, `--` (Expressions should be side-effect free)
-    *   *Workaround:* Use `onclick` handlers calling helpers to mutate state.
-*   **Bitwise Operators:** `&`, `|`, `^`, `~`, `<<`, `>>`
-*   **`Math` Object:** Direct access to `Math.max`, `Math.random` etc. is not exposed globally.
-    *   *Workaround:* Register needed Math functions as helpers: `cDOM.helper('max', Math.max)`.
-*   **New Object Creation:** `new Date()`, `new RegExp()`
-    *   *Workaround:* Create helpers like `now()` or `timestamp()`.
-*   **Arrow Functions / Lambdas:** `x => x * 2`
-    *   *Workaround:* Define complex logic in a helper.
-*   **Try/Catch/Throw**: No control flow statements.
-
-### DOM Queries `$()`
-
-```javascript
-// XPath
-"$(//button)"                 // All buttons
-"$(count(//div))"             // Count divs
-"$(../../@id)"                // Parent's parent id
-
-// CSS
-"$(.active)"                  // By class
-"$(#main)"                    // By id
+// Use in HTML structure
+{ "^": [2, 3] } // Returns 8
 ```
 
 ## Browser Support
@@ -596,37 +359,6 @@ The built-in expression engine supports a safe subset of JavaScript. This ensure
 - Requires `MutationObserver`, `Proxy`, and `XPath` APIs
 - IE11 not supported
 
-## Performance
-
-- Reactive updates are batched using `queueMicrotask`
-- Expressions are cached after first parse
-- DOM queries are evaluated on-demand
-- Minimal overhead for static content
-
-## Limitations
-
-- No virtual DOM diffing (direct DOM manipulation)
-- No component lifecycle beyond `oncreate`/`onmount`
-- No built-in routing
-- No server-side rendering
-
-## cDOM is great for simple reactive UIs, but consider [Lightview](https://github.com/anywhichway/lightview) if you need:
-
-- **Advanced routing** with middleware chains
-- **Component system** with 40+ pre-built components
-- **Template literals** in attributes (cDOM uses `${}` style in Lightview-X mode)
-- **Deep integration** with CSS-in-JS and shadow DOM defaults
-
-cDOM was extracted from Lightview to provide a lightweight alternative for developers who want reactivity without the full framework.
-
 ## License
 
 MIT
-
-## Contributing
-
-Issues and pull requests welcome at the [Lightview repository](https://github.com/anywhichway/lightview).
-
----
-
-**Made with ❤️ by the Lightview team**

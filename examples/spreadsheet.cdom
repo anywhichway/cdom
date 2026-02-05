@@ -2,7 +2,29 @@
   "div": {
     "id": "app",
     "style": "display: contents",
-    "oncreate": "_(state({ sheet: { btcQty: 0.528, btcPrice: 64250.00, ethQty: 12.45, ethPrice: 3420.50, solQty: 185.00, solPrice: 145.15, usdcQty: 2500, usdcPrice: 1.00 }, metadata: { lastUpdate: '', ticks: 0 } }, {name: 'appState'}))",
+    "oncreate": {
+      "=state": [
+        {
+          "sheet": {
+            "btcQty": 0.528,
+            "btcPrice": 64250,
+            "ethQty": 12.45,
+            "ethPrice": 3420.5,
+            "solQty": 185,
+            "solPrice": 145.15,
+            "usdcQty": 2500,
+            "usdcPrice": 1
+          },
+          "metadata": {
+            "lastUpdate": "",
+            "ticks": 0
+          }
+        },
+        {
+          "name": "appState"
+        }
+      ]
+    },
     "children": [
       {
         "div": {
@@ -37,7 +59,9 @@
                             "class": "stat-value",
                             "style": "font-size: 1.125rem",
                             "children": [
-                              "_(/appState/metadata/ticks)"
+                              {
+                                "=": "/appState/metadata/ticks"
+                              }
                             ]
                           }
                         }
@@ -97,7 +121,13 @@
                           "div": {
                             "class": "stat-value",
                             "children": [
-                              "_(currency(/appState/sheet/btcQty * /appState/sheet/btcPrice))"
+                              {
+                                "=currency": [
+                                  {
+                                    "=": "/appState/sheet/btcQty * /appState/sheet/btcPrice"
+                                  }
+                                ]
+                              }
                             ]
                           }
                         }
@@ -121,7 +151,13 @@
                             "class": "stat-value",
                             "style": "color: var(--primary)",
                             "children": [
-                              "_(currency(/appState/sheet/btcQty * /appState/sheet/btcPrice + /appState/sheet/ethQty * /appState/sheet/ethPrice + /appState/sheet/solQty * /appState/sheet/solPrice + /appState/sheet/usdcQty * /appState/sheet/usdcPrice))"
+                              {
+                                "=currency": [
+                                  {
+                                    "=": "/appState/sheet/btcQty * /appState/sheet/btcPrice + /appState/sheet/ethQty * /appState/sheet/ethPrice + /appState/sheet/solQty * /appState/sheet/solPrice + /appState/sheet/usdcQty * /appState/sheet/usdcPrice"
+                                  }
+                                ]
+                              }
                             ]
                           }
                         }
@@ -205,7 +241,9 @@
                           "div": {
                             "class": "cell cell-numeric",
                             "children": [
-                              "_(/appState/sheet/btcQty)"
+                              {
+                                "=": "/appState/sheet/btcQty"
+                              }
                             ]
                           }
                         },
@@ -213,7 +251,13 @@
                           "div": {
                             "class": "cell cell-numeric",
                             "children": [
-                              "_(currency(/appState/sheet/btcPrice))"
+                              {
+                                "=currency": [
+                                  {
+                                    "=": "/appState/sheet/btcPrice"
+                                  }
+                                ]
+                              }
                             ]
                           }
                         },
@@ -221,7 +265,13 @@
                           "div": {
                             "class": "cell cell-numeric cell-formula",
                             "children": [
-                              "_(currency(/appState/sheet/btcQty * /appState/sheet/btcPrice))"
+                              {
+                                "=currency": [
+                                  {
+                                    "=": "/appState/sheet/btcQty * /appState/sheet/btcPrice"
+                                  }
+                                ]
+                              }
                             ]
                           }
                         },
@@ -229,7 +279,14 @@
                           "div": {
                             "class": "cell cell-numeric cell-formula",
                             "children": [
-                              "_(percent((/appState/sheet/btcQty * /appState/sheet/btcPrice) / (/appState/sheet/btcQty * /appState/sheet/btcPrice + /appState/sheet/ethQty * /appState/sheet/ethPrice + /appState/sheet/solQty * /appState/sheet/solPrice + /appState/sheet/usdcQty * /appState/sheet/usdcPrice), 1))"
+                              {
+                                "=percent": [
+                                  {
+                                    "=": "(/appState/sheet/btcQty * /appState/sheet/btcPrice) / (/appState/sheet/btcQty * /appState/sheet/btcPrice + /appState/sheet/ethQty * /appState/sheet/ethPrice + /appState/sheet/solQty * /appState/sheet/solPrice + /appState/sheet/usdcQty * /appState/sheet/usdcPrice)"
+                                  },
+                                  1
+                                ]
+                              }
                             ]
                           }
                         },
@@ -253,7 +310,9 @@
                           "div": {
                             "class": "cell cell-numeric",
                             "children": [
-                              "_(/appState/sheet/ethQty)"
+                              {
+                                "=": "/appState/sheet/ethQty"
+                              }
                             ]
                           }
                         },
@@ -261,7 +320,13 @@
                           "div": {
                             "class": "cell cell-numeric",
                             "children": [
-                              "_(currency(/appState/sheet/ethPrice))"
+                              {
+                                "=currency": [
+                                  {
+                                    "=": "/appState/sheet/ethPrice"
+                                  }
+                                ]
+                              }
                             ]
                           }
                         },
@@ -269,7 +334,13 @@
                           "div": {
                             "class": "cell cell-numeric cell-formula",
                             "children": [
-                              "_(currency(/appState/sheet/ethQty * /appState/sheet/ethPrice))"
+                              {
+                                "=currency": [
+                                  {
+                                    "=": "/appState/sheet/ethQty * /appState/sheet/ethPrice"
+                                  }
+                                ]
+                              }
                             ]
                           }
                         },
@@ -277,7 +348,14 @@
                           "div": {
                             "class": "cell cell-numeric cell-formula",
                             "children": [
-                              "_(percent((/appState/sheet/ethQty * /appState/sheet/ethPrice) / (/appState/sheet/btcQty * /appState/sheet/btcPrice + /appState/sheet/ethQty * /appState/sheet/ethPrice + /appState/sheet/solQty * /appState/sheet/solPrice + /appState/sheet/usdcQty * /appState/sheet/usdcPrice), 1))"
+                              {
+                                "=percent": [
+                                  {
+                                    "=": "(/appState/sheet/ethQty * /appState/sheet/ethPrice) / (/appState/sheet/btcQty * /appState/sheet/btcPrice + /appState/sheet/ethQty * /appState/sheet/ethPrice + /appState/sheet/solQty * /appState/sheet/solPrice + /appState/sheet/usdcQty * /appState/sheet/usdcPrice)"
+                                  },
+                                  1
+                                ]
+                              }
                             ]
                           }
                         },
@@ -301,7 +379,9 @@
                           "div": {
                             "class": "cell cell-numeric",
                             "children": [
-                              "_(/appState/sheet/solQty)"
+                              {
+                                "=": "/appState/sheet/solQty"
+                              }
                             ]
                           }
                         },
@@ -309,7 +389,13 @@
                           "div": {
                             "class": "cell cell-numeric",
                             "children": [
-                              "_(currency(/appState/sheet/solPrice))"
+                              {
+                                "=currency": [
+                                  {
+                                    "=": "/appState/sheet/solPrice"
+                                  }
+                                ]
+                              }
                             ]
                           }
                         },
@@ -317,7 +403,13 @@
                           "div": {
                             "class": "cell cell-numeric cell-formula",
                             "children": [
-                              "_(currency(/appState/sheet/solQty * /appState/sheet/solPrice))"
+                              {
+                                "=currency": [
+                                  {
+                                    "=": "/appState/sheet/solQty * /appState/sheet/solPrice"
+                                  }
+                                ]
+                              }
                             ]
                           }
                         },
@@ -325,7 +417,14 @@
                           "div": {
                             "class": "cell cell-numeric cell-formula",
                             "children": [
-                              "_(percent((/appState/sheet/solQty * /appState/sheet/solPrice) / (/appState/sheet/btcQty * /appState/sheet/btcPrice + /appState/sheet/ethQty * /appState/sheet/ethPrice + /appState/sheet/solQty * /appState/sheet/solPrice + /appState/sheet/usdcQty * /appState/sheet/usdcPrice), 1))"
+                              {
+                                "=percent": [
+                                  {
+                                    "=": "(/appState/sheet/solQty * /appState/sheet/solPrice) / (/appState/sheet/btcQty * /appState/sheet/btcPrice + /appState/sheet/ethQty * /appState/sheet/ethPrice + /appState/sheet/solQty * /appState/sheet/solPrice + /appState/sheet/usdcQty * /appState/sheet/usdcPrice)"
+                                  },
+                                  1
+                                ]
+                              }
                             ]
                           }
                         },
@@ -349,7 +448,9 @@
                           "div": {
                             "class": "cell cell-numeric",
                             "children": [
-                              "_(/appState/sheet/usdcQty)"
+                              {
+                                "=": "/appState/sheet/usdcQty"
+                              }
                             ]
                           }
                         },
@@ -357,7 +458,13 @@
                           "div": {
                             "class": "cell cell-numeric",
                             "children": [
-                              "_(currency(/appState/sheet/usdcPrice))"
+                              {
+                                "=currency": [
+                                  {
+                                    "=": "/appState/sheet/usdcPrice"
+                                  }
+                                ]
+                              }
                             ]
                           }
                         },
@@ -365,7 +472,13 @@
                           "div": {
                             "class": "cell cell-numeric cell-formula",
                             "children": [
-                              "_(currency(/appState/sheet/usdcQty * /appState/sheet/usdcPrice))"
+                              {
+                                "=currency": [
+                                  {
+                                    "=": "/appState/sheet/usdcQty * /appState/sheet/usdcPrice"
+                                  }
+                                ]
+                              }
                             ]
                           }
                         },
@@ -373,7 +486,14 @@
                           "div": {
                             "class": "cell cell-numeric cell-formula",
                             "children": [
-                              "_(percent((/appState/sheet/usdcQty * /appState/sheet/usdcPrice) / (/appState/sheet/btcQty * /appState/sheet/btcPrice + /appState/sheet/ethQty * /appState/sheet/ethPrice + /appState/sheet/solQty * /appState/sheet/solPrice + /appState/sheet/usdcQty * /appState/sheet/usdcPrice), 1))"
+                              {
+                                "=percent": [
+                                  {
+                                    "=": "(/appState/sheet/usdcQty * /appState/sheet/usdcPrice) / (/appState/sheet/btcQty * /appState/sheet/btcPrice + /appState/sheet/ethQty * /appState/sheet/ethPrice + /appState/sheet/solQty * /appState/sheet/solPrice + /appState/sheet/usdcQty * /appState/sheet/usdcPrice)"
+                                  },
+                                  1
+                                ]
+                              }
                             ]
                           }
                         },
@@ -440,7 +560,13 @@
                           "div": {
                             "class": "cell cell-numeric cell-formula",
                             "children": [
-                              "_(currency(/appState/sheet/btcQty * /appState/sheet/btcPrice + /appState/sheet/ethQty * /appState/sheet/ethPrice + /appState/sheet/solQty * /appState/sheet/solPrice + /appState/sheet/usdcQty * /appState/sheet/usdcPrice))"
+                              {
+                                "=currency": [
+                                  {
+                                    "=": "/appState/sheet/btcQty * /appState/sheet/btcPrice + /appState/sheet/ethQty * /appState/sheet/ethPrice + /appState/sheet/solQty * /appState/sheet/solPrice + /appState/sheet/usdcQty * /appState/sheet/usdcPrice"
+                                  }
+                                ]
+                              }
                             ]
                           }
                         },

@@ -6,18 +6,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TechMonitor PRO | Safe & Reactive cDOM</title>
     <script src="../index.js"></script>
-
-
     <link rel="stylesheet" href="dashboard.css">
-
 </head>
 
 <body>
     <script>
-        const { state, signal, helper, schema, _ } = cDOM;
+        const { state, signal, helper, schema } = cDOM;
 
-        // --- SCHEMAS & VALIDATION ---
-        // Register named schemas for reuse
+        // --- SCHEMAS ---
         schema('Percentage', { type: 'number', minimum: 0, maximum: 100 });
         schema('Metric', { type: 'number', minimum: 0 });
         schema('LogEntry', {
@@ -31,8 +27,7 @@
         });
         schema('LogList', { type: 'array', items: 'LogEntry' });
 
-        // --- SAFE INITIALIZATION ---
-        // Using exposed API to set up reactive state with validation, transformation, and persistence
+        // --- STATE ---
         const cpu = signal(45, { name: 'cpuUsage', schema: 'Percentage', transform: 'Integer', storage: localStorage });
         const mem = signal(62, { name: 'memUsage', schema: 'Percentage', transform: 'Number', storage: localStorage });
         const req = signal(850, { name: 'reqCount', schema: 'Metric', transform: 'Integer', storage: localStorage });
@@ -44,11 +39,11 @@
             { t: '08:01:00.00', m: 'Node cluster synced', s: 'info' }
         ], { name: 'liveLogs', schema: 'LogList', storage: localStorage });
 
-        // --- CUSTOM HELPERS (Safe Logic) ---
-        // Expose logic to the reactive expression engine
+        // --- CUSTOM HELPERS ---
+        // Only keeping the one specific to business logic (Class generation)
         helper('LOG_LEVEL_CLASS', (s) => `log-${s === 'danger' ? 'err' : s === 'warning' ? 'warn' : 'info'}`);
-        helper('FORMAT_REQS', (v) => (Number(v) / 10).toFixed(1));
-        helper('ROUND', (v, d = 0) => Number(v).toFixed(d));
+
+        // Simulation Loop
         const startSimulation = () => {
             setInterval(() => {
                 cpu.value = Math.floor(Math.random() * 30 + 35);
@@ -56,7 +51,6 @@
                 req.value += Math.floor(Math.random() * 20);
                 lat.value = Math.floor(Math.random() * 15 + 10);
 
-                // Update array reactively
                 history.shift();
                 history.push(cpu.value);
 
@@ -75,30 +69,31 @@
             }, 2000);
         };
 
-        // --- COMPONENTS (Safe Markup Constructors) ---
-
-        const Metric = (label, expr, unit, icon) => {
-            const fullExpr = (expr.includes('(') || expr.startsWith('/')) ? expr : `/${expr}`;
+        // --- COMPONENT FACTORY ---
+        const Metric = (label, valueObj, unit, icon) => {
             return {
-                div: {
-                    class: 'card',
-                    children: [
-                        { div: { class: 'card-label', children: [label, icon] } },
+                "div": {
+                    "class": "card",
+                    "children": [
+                        { "div": { "class": "card-label", "children": [label, icon] } },
                         {
-                            div: {
-                                class: 'card-val', children: [
-                                    _(fullExpr),
-                                    { span: { class: 'card-unit', children: [unit] } }
+                            "div": {
+                                "class": "card-val", "children": [
+                                    valueObj,
+                                    { "span": { "class": "card-unit", "children": [unit] } }
                                 ]
                             }
                         },
                         {
-                            div: {
-                                class: 'progress', children: [
+                            "div": {
+                                "class": "progress", "children": [
                                     {
-                                        div: {
-                                            class: 'progress-bar',
-                                            style: `width: _((${fullExpr} > 100) ? 100 : ${fullExpr})%`
+                                        "div": {
+                                            "class": "progress-bar",
+                                            "style": {
+                                                // Using standard helpers: concat, min, max
+                                                "width": { "=concat": [{ "=min": [100, { "=max": [0, valueObj] }] }, "%"] }
+                                            }
                                         }
                                     }
                                 ]
@@ -109,64 +104,64 @@
             };
         };
 
-        // --- BUILD DASHBOARD ---
+        // --- APP RENDER ---
         cDOM({
-            div: {
-                style: 'display: contents',
-                oncreate: startSimulation, // Using regular JS for simulation
-                children: [
+            "div": {
+                "style": "display: contents",
+                "oncreate": startSimulation,
+                "children": [
                     {
-                        div: {
-                            class: 'sidebar', children: [
-                                { div: { class: 'logo', children: ['◈ TechMonitor'] } },
-                                { p: { style: 'color: var(--text-dim); font-size: 0.75rem;', children: ['SECURE ENVIRONMENT ACTIVE'] } }
+                        "div": {
+                            "class": "sidebar", "children": [
+                                { "div": { "class": "logo", "children": ["◈ TechMonitor"] } },
+                                { "p": { "style": "color: var(--text-dim); font-size: 0.75rem;", "children": ["SECURE ENVIRONMENT ACTIVE"] } }
                             ]
                         }
                     },
                     {
-                        div: {
-                            class: 'main', children: [
+                        "div": {
+                            "class": "main", "children": [
                                 {
-                                    header: {
-                                        class: 'header', children: [
+                                    "header": {
+                                        "class": "header", "children": [
                                             {
-                                                div: {
-                                                    class: 'title', children: [
-                                                        { h1: 'System Overview' },
-                                                        { p: { style: 'color: var(--text-dim)', children: ['Real-time metrics via cDOM Helpers'] } }
+                                                "div": {
+                                                    "class": "title", "children": [
+                                                        { "h1": "System Overview" },
+                                                        { "p": { "style": "color: var(--text-dim)", "children": ["Real-time metrics via Standard Helpers"] } }
                                                     ]
                                                 }
                                             },
-                                            { div: { class: 'status', children: ['● SYSTEM READY'] } }
+                                            { "div": { "class": "status", "children": ["● SYSTEM READY"] } }
                                         ]
                                     }
                                 },
-
                                 {
-                                    div: {
-                                        class: 'grid', children: [
-                                            Metric('Process Load', 'cpuUsage', '%', '⚡'),
-                                            Metric('Memory Heap', 'ROUND(/memUsage, 1)', '%', '💾'),
-                                            Metric('Net Throughput', 'FORMAT_REQS(/reqCount)', 'k/s', '🚀'),
-                                            Metric('Network Jitter', 'latency', 'ms', '📡')
+                                    "div": {
+                                        "class": "grid", "children": [
+                                            Metric('Process Load', { "=": "/cpuUsage" }, '%', '⚡'),
+                                            // Using standard helpers 'round'
+                                            Metric('Memory Heap', { "=round": [{ "=": "/memUsage" }, 1] }, '%', '💾'),
+                                            // Using standard helpers 'fixed' and 'divide'
+                                            Metric('Net Throughput', { "=fixed": [{ "=divide": [{ "=": "/reqCount" }, 10] }, 1] }, 'k/s', '🚀'),
+                                            Metric('Network Jitter', { "=": "/latency" }, 'ms', '📡')
                                         ]
                                     }
                                 },
-
                                 {
-                                    div: {
-                                        class: 'chart-section', children: [
+                                    "div": {
+                                        "class": "chart-section", "children": [
                                             {
-                                                div: {
-                                                    class: 'card', children: [
-                                                        { div: { class: 'card-label', children: ['Resource History (Shift/Push)'] } },
+                                                "div": {
+                                                    "class": "card", "children": [
+                                                        { "div": { "class": "card-label", "children": ["Resource History"] } },
                                                         {
-                                                            div: {
-                                                                class: 'chart-box',
-                                                                children: () => history.map(v => ({
-                                                                    div: {
-                                                                        class: 'bar-wrap', children: [
-                                                                            { div: { class: 'bar', style: `height: ${v}%` } }
+                                                            "div": {
+                                                                "class": "chart-box",
+                                                                "children": () => history.map(v => ({
+                                                                    "div": {
+                                                                        "class": "bar-wrap", "children": [
+                                                                            { "div": { "class": "bar", "style": `height: ${v}%` } }
                                                                         ]
                                                                     }
                                                                 }))
@@ -176,24 +171,27 @@
                                                 }
                                             },
                                             {
-                                                div: {
-                                                    class: 'card', children: [
-                                                        { div: { class: 'card-label', children: ['Live Integrity Logs'] } },
+                                                "div": {
+                                                    "class": "card", "children": [
+                                                        { "div": { "class": "card-label", "children": ["Live Integrity Logs"] } },
                                                         {
-                                                            div: {
-                                                                class: 'logs',
-                                                                children: () => logs.map(l => ({
-                                                                    div: {
-                                                                        class: `log _(LOG_LEVEL_CLASS("${l.s}"))`, children: [
+                                                            "div": {
+                                                                "class": "logs",
+                                                                "children": () => logs.map(l => ({
+                                                                    "div": {
+                                                                        "class": {
+                                                                            "=concat": ["log ", { "=LOG_LEVEL_CLASS": [l.s] }]
+                                                                        },
+                                                                        "children": [
                                                                             {
-                                                                                div: {
-                                                                                    class: 'log-meta', children: [
-                                                                                        { span: { style: 'font-weight: 700', children: [l.s.toUpperCase()] } },
-                                                                                        { span: { children: [l.t] } }
+                                                                                "div": {
+                                                                                    "class": "log-meta", "children": [
+                                                                                        { "span": { "style": "font-weight: 700", "children": [l.s.toUpperCase()] } },
+                                                                                        { "span": { "children": [l.t] } }
                                                                                     ]
                                                                                 }
                                                                             },
-                                                                            { div: { children: [l.m] } }
+                                                                            { "div": { "children": [l.m] } }
                                                                         ]
                                                                     }
                                                                 }))

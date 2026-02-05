@@ -1,5 +1,5 @@
 import set from './set.js';
-export default function (target, item) {
+const push = function (target, item) {
     const current = (target && typeof target === 'object' && 'value' in target) ? target.value : [];
     if (Array.isArray(current)) {
         const next = [...current, item];
@@ -7,3 +7,5 @@ export default function (target, item) {
     }
     return current;
 }
+push.mutates = true;
+export default push;

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+
+<body>
+    <script src="../index.js"></script>
+    <div id="app"></div>
+    <script>
+        console.log('Repro script starting...');
+        const { $, _ } = cDOM;
+
+        cDOM.helper('log', (...args) => {
+            console.log('Log called with:', args);
+            return args.join(' ');
+        });
+
+        const appState = cDOM.state({ user: 'Alice', count: 10 }, { name: 'app' });
+
+        cDOM({
+            "div": {
+                "id": "test-app",
+                "children": [
+                    {
+                        "div": {
+                            "style": "color: blue",
+                            "children": ["Hello ", { "=": "/app/user" }]
+                        }
+                    },
+                    {
+                        "button": {
+                            "onclick": { "=log": ["Clicked button by ", { "=": "/app/user" }] },
+                            "children": ["Click Me (Check Console)"]
+                        }
+                    },
+                    {
+                        "div": {
+                            "style": "margin-top: 10px;",
+                            "children": [
+                                "Helper Output: ",
+                                { "=log": ["Line 1", "Line 2", { "=": "/app/count" }] }
+                            ]
+                        }
+                    }
+                ]
+            }
+        }, document.getElementById('app'));
+    </script>
+</body>
+
+</html>
