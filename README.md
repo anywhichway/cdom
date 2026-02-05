@@ -12,8 +12,8 @@ cDOM is a reactive framework that lets you build dynamic UIs using declarative o
 - 💾 **Persistence** - Automatic sync to `localStorage` or `sessionStorage`
 - 🌐 **Hypermedia Support** - `src` and `href` attributes for dynamic content loading
 - 📊 **XPath & CSS Queries** - Navigate and query the DOM with reactive `$()` expressions
-- 🧮 **Math Expressions** - Evaluate formulas with `_()` for reactive calculations
-- 🪶 **Lightweight** - ~15KB minified, no dependencies except optional expr-eval
+- 🧮 **Safe Expression Engine** - Built-in secure parser for reactive calculations `_()`
+- 🪶 **Lightweight** - ~15KB minified, ZERO dependencies
 - 🔌 **Standalone** - Works independently of Lightview
 
 ## Installation
@@ -21,22 +21,17 @@ cDOM is a reactive framework that lets you build dynamic UIs using declarative o
 ### CDN (Recommended)
 
 ```html
-<!-- Optional: Math expression parser -->
-<script src="https://cdn.jsdelivr.net/npm/expr-eval/dist/bundle.min.js"></script>
-<!-- cDOM library -->
 <script src="https://cdn.jsdelivr.net/npm/cdom/index.min.js"></script>
 ```
-
-**Note:** `expr-eval` is optional. cDOM will function without it, but support for complex math expressions and reactive logic within `_()` and `set()` helper calls will be unavailable.
 
 ### Local
 
 Download `cdom.js` and include it in your project:
 
 ```html
-<script src="https://cdn.jsdelivr.net/npm/expr-eval/dist/bundle.min.js"></script>
 <script src="path/to/cdom.js"></script>
 ```
+
 
 ## Quick Start
 
@@ -44,7 +39,6 @@ Download `cdom.js` and include it in your project:
 
 ```html
 <html>
-<script src="https://cdn.jsdelivr.net/npm/expr-eval/dist/bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/cdom/index.min.js"></script>
 
 <body>
@@ -76,7 +70,6 @@ cDOM will replace the script is runs in if an emty options object is provided, j
 
 ```html
 <html>
-<script src="https://cdn.jsdelivr.net/npm/expr-eval/dist/bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/cdom/index.min.js"></script>
 
 <body>
@@ -300,8 +293,8 @@ This can't be transported as JSON:
 ```
 
 **Math expressions:**
-
-Requires loading the expr-eval library.
+ 
+The built-in secure parser handles math and logic operations natively.
 
 ```javascript
 "_(/price * /quantity)"             // Reactive calculation (Global paths)
@@ -309,8 +302,6 @@ _('./local/price * 1.1')            // Scoped path (requires ./ prefix)
 ```
 
 **Important:** In math expressions, you **MUST** use either `/` (absolute) or `./` (scoped) prefixes for all state paths. This disambiguates state paths from mathematical division operators.
-
-Expressions are reactive, if the state they reference changes, the expression will be re-evaluated.
 
 **Note: No Inline Text Interpolation**
 
@@ -425,7 +416,6 @@ When `_()` is used a string in a cDOM it establishes reatcive context and calls 
 
 ```html
 <html>
-<script src="https://cdn.jsdelivr.net/npm/expr-eval/dist/bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/cdom/index.min.js"></script>
 
 <body>
@@ -559,6 +549,33 @@ Evaluate DOM query (XPath or CSS).
 "_(/price * 1.1)"             // With literal
 "_(helper(/arg1, /arg2))"     // Helper function
 ```
+
+### Supported Expressions
+
+The built-in expression engine supports a safe subset of JavaScript. This ensures security by avoiding `eval()` while providing enough power for UI logic.
+
+**Supported:**
+*   **Math:** `+`, `-`, `*`, `/`, `%`
+*   **comparison:** `==`, `!=`, `<`, `>`, `<=`, `>=`
+*   **Logic:** `&&`, `||`, `!`
+*   **Ternary:** `condition ? trueVal : falseVal`
+*   **Grouping:** `( )`
+*   **Data Types:** Strings (`'hello'`, `"world"`), Numbers (`123`, `4.5`), Booleans (`true`, `false`), `null`
+*   **Objects & Arrays:** `{ key: val }`, `[1, 2, 3]`
+*   **Member Access:** `obj.prop`, `obj['key']`, `arr[0]`
+*   **Functions:** Calls to registered helpers (e.g., `sum(1, 2)`)
+
+**Unsupported (Use Helpers instead):**
+*   **Assignment/Mutation:** `=`, `+=`, `-=`, `++`, `--` (Expressions should be side-effect free)
+    *   *Workaround:* Use `onclick` handlers calling helpers to mutate state.
+*   **Bitwise Operators:** `&`, `|`, `^`, `~`, `<<`, `>>`
+*   **`Math` Object:** Direct access to `Math.max`, `Math.random` etc. is not exposed globally.
+    *   *Workaround:* Register needed Math functions as helpers: `cDOM.helper('max', Math.max)`.
+*   **New Object Creation:** `new Date()`, `new RegExp()`
+    *   *Workaround:* Create helpers like `now()` or `timestamp()`.
+*   **Arrow Functions / Lambdas:** `x => x * 2`
+    *   *Workaround:* Define complex logic in a helper.
+*   **Try/Catch/Throw**: No control flow statements.
 
 ### DOM Queries `$()`
 

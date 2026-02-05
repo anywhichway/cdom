@@ -5,7 +5,6 @@
     const helpers = new Map();
     const expressionCache = new Map();
     const domListeners = new Set();
-    let mathParser = null;
     let currentSubscriber = null;
     let domChangeQueued = false;
     const stateExpressionCache = new Map();
@@ -13,6 +12,302 @@
     const pendingHelpers = new Map();
     const helperWaiters = new Map();
     const schemas = new Map();
+
+    function unwrap(val) {
+        if (val && typeof val === 'object' && 'value' in val) return val.value;
+        return val;
+    }
+
+    function createPathFunction(pathStr, rootType) {
+        const parts = pathStr.split(/[./]/).filter(p => p !== '');
+        return (ctx, ev) => {
+            let current;
+            let start = 0;
+
+            if (rootType === '$this') current = ctx;
+            else if (rootType === '$event') current = ev;
+            else {
+                current = findInScope(ctx, parts[0]);
+                if (current === undefined) current = getHelper(parts[0]);
+
+                if (current !== undefined) start = 1;
+                else return undefined;
+            }
+
+            for (let i = start; i < parts.length; i++) {
+                if (current === null || current === undefined) return undefined;
+                current = unwrap(current);
+                current = current[parts[i]];
+            }
+            return current;
+        };
+    }
+
+    function createExpression(text) {
+        let at = 0;
+        const tokens = tokenize(text);
+
+        function tokenize(src) {
+            const results = [];
+            const tokenRegex = /\s*(\d*\.\d+|\d+|"([^"\\]|\\.)*"|'([^'\\]|\\.)*'|\.{1,2}\/|\/|\$this|\$event|[a-zA-Z_$][\w$]*|==|!=|<=|>=|&&|\|\||[-+*/%^<>!?:.,(){}[\]])\s*/g;
+            let match;
+            while ((match = tokenRegex.exec(src)) !== null) {
+                results.push(match[1]);
+            }
+            return results;
+        }
+
+        function peek(offset = 0) { return tokens[at + offset]; }
+        function next() { return tokens[at++]; }
+        function consume(expected) {
+            const t = next();
+            if (t !== expected) throw new Error(`Expected "${expected}" but found "${t}"`);
+            return t;
+        }
+
+        function parseTernary() {
+            let node = parseLogicalOR();
+            if (peek() === '?') {
+                next();
+                const left = parseTernary();
+                consume(':');
+                const right = parseTernary();
+                const cond = node;
+                node = (ctx, ev) => cond(ctx, ev) ? left(ctx, ev) : right(ctx, ev);
+            }
+            return node;
+        }
+
+        function parseLogicalOR() {
+            let node = parseLogicalAND();
+            while (peek() === '||') {
+                next();
+                const right = parseLogicalAND();
+                const left = node;
+                node = (ctx, ev) => left(ctx, ev) || right(ctx, ev);
+            }
+            return node;
+        }
+
+        function parseLogicalAND() {
+            let node = parseEquality();
+            while (peek() === '&&') {
+                next();
+                const right = parseEquality();
+                const left = node;
+                node = (ctx, ev) => left(ctx, ev) && right(ctx, ev);
+            }
+            return node;
+        }
+
+        function parseEquality() {
+            let node = parseRelational();
+            while (peek() === '==' || peek() === '!=') {
+                const op = next();
+                const right = parseRelational();
+                const left = node;
+                if (op === '==') node = (ctx, ev) => left(ctx, ev) == right(ctx, ev);
+                else node = (ctx, ev) => left(ctx, ev) != right(ctx, ev);
+            }
+            return node;
+        }
+
+        function parseRelational() {
+            let node = parseAdditive();
+            const relOps = ['<', '>', '<=', '>='];
+            while (relOps.includes(peek())) {
+                const op = next();
+                const right = parseRelational();
+                const left = node;
+                if (op === '<') node = (ctx, ev) => left(ctx, ev) < right(ctx, ev);
+                else if (op === '>') node = (ctx, ev) => left(ctx, ev) > right(ctx, ev);
+                else if (op === '<=') node = (ctx, ev) => left(ctx, ev) <= right(ctx, ev);
+                else if (op === '>=') node = (ctx, ev) => left(ctx, ev) >= right(ctx, ev);
+            }
+            return node;
+        }
+
+        function parseAdditive() {
+            let node = parseMultiplicative();
+            while (peek() === '+' || peek() === '-') {
+                const op = next();
+                const right = parseMultiplicative();
+                const left = node;
+                if (op === '+') node = (ctx, ev) => left(ctx, ev) + right(ctx, ev);
+                else node = (ctx, ev) => left(ctx, ev) - right(ctx, ev);
+            }
+            return node;
+        }
+
+        function parseMultiplicative() {
+            let node = parseUnary();
+            while (peek() === '*' || peek() === '/' || peek() === '%') {
+                const op = next();
+                const right = parseUnary();
+                const left = node;
+                if (op === '*') node = (ctx, ev) => left(ctx, ev) * right(ctx, ev);
+                else if (op === '/') node = (ctx, ev) => left(ctx, ev) / right(ctx, ev);
+                else node = (ctx, ev) => left(ctx, ev) % right(ctx, ev);
+            }
+            return node;
+        }
+
+        function parseUnary() {
+            const op = peek();
+            if (op === '!' || op === '-' || op === '+') {
+                next();
+                const right = parseUnary();
+                if (op === '!') return (ctx, ev) => !right(ctx, ev);
+                if (op === '-') return (ctx, ev) => -right(ctx, ev);
+                if (op === '+') return (ctx, ev) => +right(ctx, ev);
+            }
+            return parseMember();
+        }
+
+        function parseMember() {
+            let node = parsePrimary();
+            while (true) {
+                const op = peek();
+                if (op === '.') {
+                    next();
+                    const prop = next();
+                    const objFn = node;
+                    node = (ctx, ev) => {
+                        const obj = unwrap(objFn(ctx, ev));
+                        return obj?.[prop];
+                    };
+                } else if (op === '[') {
+                    next();
+                    const keyFn = parseTernary();
+                    consume(']');
+                    const objFn = node;
+                    node = (ctx, ev) => {
+                        const obj = unwrap(objFn(ctx, ev));
+                        const key = unwrap(keyFn(ctx, ev));
+                        return obj?.[key];
+                    };
+                } else if (op === '(') {
+                    next();
+                    const argFns = [];
+                    if (peek() !== ')') {
+                        while (true) {
+                            argFns.push(parseTernary());
+                            if (peek() === ')') break;
+                            consume(',');
+                        }
+                    }
+                    consume(')');
+                    const fnGetter = node;
+                    node = (ctx, ev) => {
+                        const fn = fnGetter(ctx, ev);
+                        const args = argFns.map(f => unwrap(f(ctx, ev)));
+                        if (typeof fn === 'function') return fn(...args);
+                        return undefined;
+                    };
+                } else break;
+            }
+            return node;
+        }
+
+        function parsePrimary() {
+            const t = next();
+            if (!t) return () => undefined;
+            if (t === '(') {
+                const node = parseTernary();
+                consume(')');
+                return node;
+            }
+            if (t === '{') {
+                const entries = [];
+                if (peek() !== '}') {
+                    while (true) {
+                        let key;
+                        const kt = next();
+                        if (kt.startsWith('"') || kt.startsWith("'")) key = kt.slice(1, -1);
+                        else key = kt;
+                        consume(':');
+                        const valFn = parseTernary();
+                        entries.push({ key, valFn });
+                        if (peek() === '}') break;
+                        consume(',');
+                    }
+                }
+                consume('}');
+                return (ctx, ev) => {
+                    const obj = {};
+                    for (const { key, valFn } of entries) obj[key] = unwrap(valFn(ctx, ev));
+                    return obj;
+                };
+            }
+            if (t === '[') {
+                const itemFns = [];
+                if (peek() !== ']') {
+                    while (true) {
+                        itemFns.push(parseTernary());
+                        if (peek() === ']') break;
+                        consume(',');
+                    }
+                }
+                consume(']');
+                return (ctx, ev) => itemFns.map(f => unwrap(f(ctx, ev)));
+            }
+            if (t.startsWith('"') || t.startsWith("'")) return () => t.slice(1, -1).replace(/\\(.)/g, '$1');
+            if (/\d/.test(t)) return () => Number(t);
+            if (t === 'true') return () => true;
+            if (t === 'false') return () => false;
+            if (t === 'null') return () => null;
+            if (t === '/' || t === './' || t === '../' || t === '$this' || t === '$event') {
+                let path = t;
+                // Robust path consuming loop with lookahead
+                while (true) {
+                    const p = peek();
+                    if (p && /^[\w$]/.test(p)) {
+                        path += next();
+                    } else if (p === '/') {
+                        const nextTok = peek(1);
+                        if (nextTok && /^[\w$]/.test(nextTok)) {
+                            path += next(); // eat /
+                            path += next(); // eat identifier
+                        } else {
+                            break;
+                        }
+                    } else {
+                        break;
+                    }
+                }
+                if (path === '$this') return (ctx) => ctx;
+                if (path === '$event') return (ctx, ev) => ev;
+                if (path.startsWith('$this.') || path.startsWith('$this/')) return createPathFunction(path.slice(6), '$this');
+                if (path.startsWith('$event.') || path.startsWith('$event/')) return createPathFunction(path.slice(7), '$event');
+                const offset = path.startsWith('./') ? 2 : (path.startsWith('/') ? 1 : 0);
+                return createPathFunction(path.slice(offset), 'state');
+            }
+            return (ctx, ev) => {
+                const val = findInScope(ctx, t) || getHelper(t);
+                if (val === undefined && !['_', '$'].includes(t)) {
+                    suspendSubscriber(t, currentSubscriber);
+                }
+                return val;
+            };
+        }
+
+        function unwrap(val) {
+            if (val && typeof val === 'object' && 'value' in val) return val.value;
+            return val;
+        }
+
+        try {
+            return parseTernary();
+        } catch (e) {
+            console.error(`[cDOM] Parse Error in "${text}":`, e);
+            return () => `[Parse Error]`;
+        }
+    }
+
+    const parseLiteral = (text) => {
+        const fn = createExpression(text);
+        return fn();
+    };
 
     function queueDOMChange() {
         if (domChangeQueued) return;
@@ -155,6 +450,8 @@
             return fn ? fn(v) : v;
         };
 
+        let result;
+
         if (typeof val !== 'object' || val === null) {
             let value = applyTransform(val);
             if (name && storage) {
@@ -266,6 +563,8 @@
         addToScope(options.scope, name, result);
         return result;
     }
+
+    state.get = (name) => registry.get(name);
 
     function registerDependency(name) {
         if (!name || !currentSubscriber) return;
@@ -500,166 +799,15 @@
 
     function compileStateExpression(expression) {
         const expr = expression.trim();
-
-        if (expr === '$this') return (ctx) => ctx;
-        if (expr === '$event') return (ctx, ev) => ev;
-
-        // Literals (Strings & Numbers)
-        if ((expr.startsWith("'") && expr.endsWith("'")) || (expr.startsWith('"') && expr.endsWith('"'))) {
-            const val = expr.slice(1, -1);
-            return () => val;
-        }
-        if (!isNaN(expr) && !isNaN(parseFloat(expr))) {
-            const val = Number(expr);
-            return () => val;
-        }
-        if (expr === 'true') return () => true;
-        if (expr === 'false') return () => false;
-        if (expr === 'null') return () => null;
-
-        // Object literals: {key: value, ...}
-        if (expr.startsWith('{') && expr.endsWith('}')) {
+        const compiled = createExpression(expr);
+        return (ctx, ev) => {
             try {
-                // Use Function constructor to safely evaluate the object literal
-                const fn = new Function('return (' + expr + ')');
-                const obj = fn();
-                return () => obj;
+                return compiled(ctx, ev);
             } catch (e) {
-                return () => ({ error: 'Invalid object literal' });
+                console.error(`[cDOM] Execution Error in "${expr}":`, e, { contextNode: ctx });
+                return `_(${expr})`;
             }
-        }
-
-        // Array literals: [item, item, ...]
-        if (expr.startsWith('[') && expr.endsWith(']')) {
-            try {
-                const fn = new Function('return (' + expr + ')');
-                const arr = fn();
-                return () => arr;
-            } catch (e) {
-                return () => [];
-            }
-        }
-
-        // Helpers: name(arg, arg)
-        const callMatch = expr.match(/^([\w.]+)\(([\s\S]*)\)$/);
-        if (callMatch) {
-            const funcName = callMatch[1];
-            const argsStr = callMatch[2];
-            const argExprs = [];
-            if (argsStr) {
-                let current = '';
-                let parenDepth = 0;
-                let braceDepth = 0;
-                let bracketDepth = 0;
-                let inString = false;
-                let stringChar = null;
-
-                for (let i = 0; i < argsStr.length; i++) {
-                    const char = argsStr[i];
-                    const prevChar = i > 0 ? argsStr[i - 1] : null;
-
-                    // Track string boundaries
-                    if ((char === '"' || char === "'") && prevChar !== '\\') {
-                        if (!inString) {
-                            inString = true;
-                            stringChar = char;
-                        } else if (char === stringChar) {
-                            inString = false;
-                            stringChar = null;
-                        }
-                    }
-
-                    // Only track depth outside of strings
-                    if (!inString) {
-                        if (char === '(') parenDepth++;
-                        else if (char === ')') parenDepth--;
-                        else if (char === '{') braceDepth++;
-                        else if (char === '}') braceDepth--;
-                        else if (char === '[') bracketDepth++;
-                        else if (char === ']') bracketDepth--;
-                    }
-
-                    // Split on comma only at depth 0
-                    if (char === ',' && parenDepth === 0 && braceDepth === 0 && bracketDepth === 0 && !inString) {
-                        argExprs.push(current.trim());
-                        current = '';
-                    } else {
-                        current += char;
-                    }
-                }
-                argExprs.push(current.trim());
-            }
-            const argFns = argExprs.map(ae => compileStateExpression(ae));
-            return (ctx, ev) => {
-                const fn = getHelper(funcName);
-                if (fn === undefined) {
-                    suspendSubscriber(funcName, currentSubscriber);
-                    return '...';
-                }
-                if (fn === null) return `[${funcName} undefined]`;
-                const args = new Array(argFns.length);
-                for (let i = 0; i < argFns.length; i++) {
-                    const argVal = argFns[i](ctx, ev);
-                    // Unwrap Path Objects or Signals
-                    if (argVal && typeof argVal === 'object') {
-                        if ('value' in argVal) args[i] = argVal.value;
-                        else if (argVal.toString() !== '[object Object]') args[i] = argVal; // Keep as is if it's a special object
-                        else args[i] = argVal; // Fallback
-                    } else {
-                        args[i] = argVal;
-                    }
-                }
-                try {
-                    return fn(...args);
-                } catch (e) {
-                    console.error(`[cDOM] Helper error in "${funcName}":`, e, { expression, contextNode: ctx });
-                    return `_(${expression})`;
-                }
-            };
-        }
-
-        // Math/Logic expressions (contains operators)
-        if (/[+\-*%^<>=!&|?:]/.test(expr)) {
-            return (ctx, ev) => {
-                if (!mathParser && typeof globalThis.exprEval !== 'undefined') {
-                    try {
-                        mathParser = new globalThis.exprEval.Parser();
-                    } catch (e) {
-                        console.error("[cDOM] Failed to initialize expr-eval parser:", e);
-                        return `_(${expression})`;
-                    }
-                }
-                if (!mathParser) return expr;
-                try {
-                    const scope = {};
-                    // Regex matches paths starting with / or ./ 
-                    const processedExpr = expr.replace(/((?:\.{1,2}\/|\/)[\w]+(?:\/[\w]+)*)/g, (match) => {
-                        const val = evaluateStateExpression(match, ctx, ev);
-                        const resolved = (val && typeof val === 'object' && 'value' in val) ? val.value : val;
-                        const id = 'v_' + Math.random().toString(36).substr(2, 5);
-                        scope[id] = resolved;
-                        return id;
-                    });
-                    return mathParser.evaluate(processedExpr, scope);
-                } catch (e) {
-                    console.error(`[cDOM] Math Error in "${expression}":`, e, { contextNode: ctx });
-                    return `_(${expression})`;
-                }
-            };
-        }
-
-        // Paths: Must start with / or ./
-        if (expr.startsWith('/') || expr.startsWith('./')) {
-            const offset = expr.startsWith('./') ? 2 : 1;
-            return createPathFunction(expr.substring(offset), 'state');
-        }
-
-        // Specialized context paths: $this.prop or $event.prop
-        if (expr.startsWith('$this.') || expr.startsWith('$this/')) return createPathFunction(expr.substring(6), '$this');
-        if (expr.startsWith('$event.') || expr.startsWith('$event/')) return createPathFunction(expr.substring(7), '$event');
-
-        // Fallback: Anything else is a literal string
-        return () => expr;
+        };
     }
 
     function createPathFunction(pathStr, type) {

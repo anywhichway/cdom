@@ -5,8 +5,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TechMonitor PRO | Safe & Reactive cDOM</title>
-    <!-- We still need expr-eval if cdom.js uses it, but we will avoid operator expressions -->
-    <script src="https://cdn.jsdelivr.net/npm/expr-eval/dist/bundle.min.js"></script>
     <script src="../index.js"></script>
 
 
@@ -50,6 +48,7 @@
         // Expose logic to the reactive expression engine
         helper('LOG_LEVEL_CLASS', (s) => `log-${s === 'danger' ? 'err' : s === 'warning' ? 'warn' : 'info'}`);
         helper('FORMAT_REQS', (v) => (Number(v) / 10).toFixed(1));
+        helper('ROUND', (v, d = 0) => Number(v).toFixed(d));
         const startSimulation = () => {
             setInterval(() => {
                 cpu.value = Math.floor(Math.random() * 30 + 35);
@@ -99,7 +98,7 @@
                                     {
                                         div: {
                                             class: 'progress-bar',
-                                            style: `width: _(IF(GT(${fullExpr}, 100), 100, ${fullExpr}))%`
+                                            style: `width: _((${fullExpr} > 100) ? 100 : ${fullExpr})%`
                                         }
                                     }
                                 ]

@@ -14,11 +14,25 @@ const dist = path.join(__dirname, 'dist');
 console.log('Starting build...');
 
 // 1. Clean and create dist directory
-if (fs.existsSync(dist)) {
+// 1. Clean and create dist directory
+if (!fs.existsSync(dist)) {
+    fs.mkdirSync(dist);
+} else {
     console.log('Cleaning existing dist folder...');
-    fs.rmSync(dist, { recursive: true, force: true });
+    try {
+        // Try to clear contents instead of removing directory itself to avoid EBUSY on folder lock
+        const files = fs.readdirSync(dist);
+        for (const file of files) {
+            try {
+                fs.rmSync(path.join(dist, file), { recursive: true, force: true });
+            } catch (e) {
+                console.warn(`Warning: Could not delete ${file}: ${e.message}`);
+            }
+        }
+    } catch (e) {
+        console.warn(`Warning: Could not clean dist folder: ${e.message}. Attempting to overwrite...`);
+    }
 }
-fs.mkdirSync(dist);
 
 // 2. Helper function to copy directories recursively
 function copyDir(src, dest) {
