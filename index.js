@@ -55,7 +55,7 @@
 
         function tokenize(src) {
             const results = [];
-            const tokenRegex = /\s*(\d*\.\d+|\d+|"([^"\\]|\\.)*"|'([^'\\]|\\.)*'|\.{1,2}\/|\/|\$this|\$event|[a-zA-Z_$][\w$]*|==|!=|<=|>=|&&|\|\||[-+*/%^<>!?:.,(){}[\]])\s*/g;
+            const tokenRegex = /\s*(\d*\.\d+|\d+|"([^"\\]|\\.)*"|'([^'\\]|\\.)*'|=\/|\.{1,2}\/|\/|\$this|\$event|[a-zA-Z_$][\w$]*|==|!=|<=|>=|&&|\|\||[-+*/%^<>!?:.,(){}[\]])\s*/g;
             let match;
             while ((match = tokenRegex.exec(src)) !== null) {
                 results.push(match[1]);
@@ -262,9 +262,34 @@
             if (t === 'true') return () => true;
             if (t === 'false') return () => false;
             if (t === 'null') return () => null;
-            if (t === '/' || t === './' || t === '../' || t === '$this' || t === '$event') {
+
+            // Handle =/ state reference sigil
+            if (t === '=/') {
+                let path = '';
+                // Consume path tokens after =/
+                while (true) {
+                    const p = peek();
+                    if (p && /^[\w$]/.test(p)) {
+                        path += next();
+                    } else if (p === '/') {
+                        const nextTok = peek(1);
+                        if (nextTok && /^[\w$]/.test(nextTok)) {
+                            path += next(); // eat /
+                            path += next(); // eat identifier
+                        } else {
+                            break;
+                        }
+                    } else {
+                        break;
+                    }
+                }
+                return createPathFunction(path, 'state');
+            }
+
+            // Handle $this and $event
+            if (t === '$this' || t === '$event') {
                 let path = t;
-                // Robust path consuming loop with lookahead
+                // Check for property access
                 while (true) {
                     const p = peek();
                     if (p && /^[\w$]/.test(p)) {
@@ -285,9 +310,9 @@
                 if (path === '$event') return (ctx, ev) => ev;
                 if (path.startsWith('$this.') || path.startsWith('$this/')) return createPathFunction(path.slice(6), '$this');
                 if (path.startsWith('$event.') || path.startsWith('$event/')) return createPathFunction(path.slice(7), '$event');
-                const offset = path.startsWith('./') ? 2 : (path.startsWith('/') ? 1 : 0);
-                return createPathFunction(path.slice(offset), 'state');
             }
+
+            // Bareword: helper or error
             return (ctx, ev) => {
                 const val = findInScope(ctx, t) || getHelper(t);
                 if (val === undefined && !['_', '$'].includes(t)) {
@@ -805,7 +830,7 @@
                 const args = Array.isArray(val) ? val : [val];
                 const resolvedArgs = args.map(arg => {
                     const isPath = typeof arg === 'string' && (
-                        arg.startsWith('/') || arg.startsWith('./') || arg.startsWith('../') ||
+                        arg.startsWith('=/') ||
                         arg === '$this' || arg.startsWith('$this/') || arg.startsWith('$this.') ||
                         arg === '$event' || arg.startsWith('$event/') || arg.startsWith('$event.')
                     );
@@ -813,10 +838,10 @@
                     if (isPath) {
                         const mutationOperators = ['++', '--', 'increment', 'decrement'];
                         if (mutationOperators.includes(key) || mutationOperators.includes(helperName) || helperFn.mutates) {
-                            const p = arg === '$this' ? '$this' : (arg === '$event' ? '$event' : (arg.startsWith('/') || arg.startsWith('./') || arg.startsWith('../') ? 'state' : null));
+                            const p = arg === '$this' ? '$this' : (arg === '$event' ? '$event' : (arg.startsWith('=/') ? 'state' : null));
                             if (p) {
                                 let path = arg;
-                                if (p === 'state') path = arg.replace(/^(\.\/|\/)/, '');
+                                if (p === 'state') path = arg.slice(2); // Remove =/ prefix
                                 return createPathFunction(path, p)(context, event);
                             }
                         }
@@ -841,7 +866,7 @@
             const isPath = typeof v === 'string' && (
                 v === '$this' || v.startsWith('$this/') || v.startsWith('$this.') ||
                 v === '$event' || v.startsWith('$event/') || v.startsWith('$event.') ||
-                v.startsWith('/') || v.startsWith('./') || v.startsWith('../')
+                v.startsWith('=/')
             );
 
             if (isPath) {
@@ -1292,7 +1317,7 @@
                 element.replaceChildren(pre);
             }
         } catch (e) {
-            element.innerHTML = `<div style="color:red;">Failed to load: ${srcValue}</div>`;
+            element.innerHTML = `<div style="color:red;">Failed to load: ${srcValue} ${e.message}</div>`;
         }
     }
 

@@ -27,15 +27,15 @@
                     console.log('App mounted to DOM!', this);
                 },
                 children: [
-                    "App Name: ", { "=": "/appName" }, { br: {} },
-                    "Local Counter (Scoped): ", { "=": "./localCounter/count" },
+                    "App Name: ", { "=": "=/appName" }, { br: {} },
+                    "Local Counter (Scoped): ", { "=": "=/localCounter/count" },
                     {
                         button: {
                             onclick: [
                                 { "=log": ["Starting array execution..."] },
-                                { "++": [{ "=": "./localCounter/count" }] },
-                                { "=log": ["Counter is now:", { "=": "./localCounter/count" }] },
-                                { "set": ["/appName", "cDOM Rocked!"] }
+                                { "++": ["=/localCounter/count"] },
+                                { "=log": ["Counter is now:", "=/localCounter/count"] },
+                                { "set": ["=/appName", "cDOM Rocked!"] }
                             ],
                             children: ["Array Handler Demo"]
                         }
@@ -44,10 +44,10 @@
                         div: {
                             children: [
                                 { br: {} },
-                                "This div can also see the local counter: ", { "=": "./localCounter/count" },
+                                "This div can also see the local counter: ", { "=": "=/localCounter/count" },
                                 { br: {} },
                                 { br: {} },
-                                "Math expression (count * 2 + 5): ", { "=": "./localCounter/count * 2 + 5" },
+                                "Math expression (count * 2 + 5): ", { "=": "=/localCounter/count * 2 + 5" },
                                 { br: {} },
                                 { br: {} },
                                 {
@@ -61,7 +61,7 @@
                                             "XPath (Active Button Count): ", { "$": "count(//button)" }, { br: {} },
                                             "XPath (Button Label): ", { "$": "//button/text()" }, { br: {} },
                                             "Dynamic Helper { =sum: [1, 2, 3] }: ", { "=sum": [1, 2, 3] }, { br: {} },
-                                            "Dynamic Helper{ =currency: [{ =: ./localCounter/count }] }: ", { "=currency": [{ "=": "/localCounter/count" }] }, { br: {} },
+                                            "Dynamic Helper{ =currency: [=/localCounter/count] }: ", { "=currency": ["=/localCounter/count"] }, { br: {} },
                                             "Undefined Helper: ", { "=This.Should.Not.Exist": [] }
                                         ]
                                     }

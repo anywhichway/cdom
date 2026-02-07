@@ -60,7 +60,7 @@
                             "style": "font-size: 1.125rem",
                             "children": [
                               {
-                                "=": "/appState/metadata/ticks"
+                                "=": "=/appState/metadata/ticks"
                               }
                             ]
                           }
@@ -124,7 +124,7 @@
                               {
                                 "=currency": [
                                   {
-                                    "=": "/appState/sheet/btcQty * /appState/sheet/btcPrice"
+                                    "=": "=/appState/sheet/btcQty * =/appState/sheet/btcPrice"
                                   }
                                 ]
                               }
@@ -154,7 +154,7 @@
                               {
                                 "=currency": [
                                   {
-                                    "=": "/appState/sheet/btcQty * /appState/sheet/btcPrice + /appState/sheet/ethQty * /appState/sheet/ethPrice + /appState/sheet/solQty * /appState/sheet/solPrice + /appState/sheet/usdcQty * /appState/sheet/usdcPrice"
+                                    "=": "=/appState/sheet/btcQty * =/appState/sheet/btcPrice + =/appState/sheet/ethQty * =/appState/sheet/ethPrice + =/appState/sheet/solQty * =/appState/sheet/solPrice + =/appState/sheet/usdcQty * =/appState/sheet/usdcPrice"
                                   }
                                 ]
                               }
@@ -242,7 +242,7 @@
                             "class": "cell cell-numeric",
                             "children": [
                               {
-                                "=": "/appState/sheet/btcQty"
+                                "=": "=/appState/sheet/btcQty"
                               }
                             ]
                           }
@@ -254,7 +254,7 @@
                               {
                                 "=currency": [
                                   {
-                                    "=": "/appState/sheet/btcPrice"
+                                    "=": "=/appState/sheet/btcPrice"
                                   }
                                 ]
                               }
@@ -268,7 +268,7 @@
                               {
                                 "=currency": [
                                   {
-                                    "=": "/appState/sheet/btcQty * /appState/sheet/btcPrice"
+                                    "=": "=/appState/sheet/btcQty * =/appState/sheet/btcPrice"
                                   }
                                 ]
                               }
@@ -282,7 +282,7 @@
                               {
                                 "=percent": [
                                   {
-                                    "=": "(/appState/sheet/btcQty * /appState/sheet/btcPrice) / (/appState/sheet/btcQty * /appState/sheet/btcPrice + /appState/sheet/ethQty * /appState/sheet/ethPrice + /appState/sheet/solQty * /appState/sheet/solPrice + /appState/sheet/usdcQty * /appState/sheet/usdcPrice)"
+                                    "=": "(=/appState/sheet/btcQty * =/appState/sheet/btcPrice) / (=/appState/sheet/btcQty * =/appState/sheet/btcPrice + =/appState/sheet/ethQty * =/appState/sheet/ethPrice + =/appState/sheet/solQty * =/appState/sheet/solPrice + =/appState/sheet/usdcQty * =/appState/sheet/usdcPrice)"
                                   },
                                   1
                                 ]
@@ -311,7 +311,7 @@
                             "class": "cell cell-numeric",
                             "children": [
                               {
-                                "=": "/appState/sheet/ethQty"
+                                "=": "=/appState/sheet/ethQty"
                               }
                             ]
                           }
@@ -323,7 +323,7 @@
                               {
                                 "=currency": [
                                   {
-                                    "=": "/appState/sheet/ethPrice"
+                                    "=": "=/appState/sheet/ethPrice"
                                   }
                                 ]
                               }
@@ -337,7 +337,7 @@
                               {
                                 "=currency": [
                                   {
-                                    "=": "/appState/sheet/ethQty * /appState/sheet/ethPrice"
+                                    "=": "=/appState/sheet/ethQty * =/appState/sheet/ethPrice"
                                   }
                                 ]
                               }
@@ -351,7 +351,7 @@
                               {
                                 "=percent": [
                                   {
-                                    "=": "(/appState/sheet/ethQty * /appState/sheet/ethPrice) / (/appState/sheet/btcQty * /appState/sheet/btcPrice + /appState/sheet/ethQty * /appState/sheet/ethPrice + /appState/sheet/solQty * /appState/sheet/solPrice + /appState/sheet/usdcQty * /appState/sheet/usdcPrice)"
+                                    "=": "(=/appState/sheet/ethQty * =/appState/sheet/ethPrice) / (=/appState/sheet/btcQty * =/appState/sheet/btcPrice + =/appState/sheet/ethQty * =/appState/sheet/ethPrice + =/appState/sheet/solQty * =/appState/sheet/solPrice + =/appState/sheet/usdcQty * =/appState/sheet/usdcPrice)"
                                   },
                                   1
                                 ]
@@ -380,7 +380,7 @@
                             "class": "cell cell-numeric",
                             "children": [
                               {
-                                "=": "/appState/sheet/solQty"
+                                "=": "=/appState/sheet/solQty"
                               }
                             ]
                           }
@@ -392,7 +392,7 @@
                               {
                                 "=currency": [
                                   {
-                                    "=": "/appState/sheet/solPrice"
+                                    "=": "=/appState/sheet/solPrice"
                                   }
                                 ]
                               }
@@ -406,7 +406,7 @@
                               {
                                 "=currency": [
                                   {
-                                    "=": "/appState/sheet/solQty * /appState/sheet/solPrice"
+                                    "=": "=/appState/sheet/solQty * =/appState/sheet/solPrice"
                                   }
                                 ]
                               }
@@ -420,7 +420,7 @@
                               {
                                 "=percent": [
                                   {
-                                    "=": "(/appState/sheet/solQty * /appState/sheet/solPrice) / (/appState/sheet/btcQty * /appState/sheet/btcPrice + /appState/sheet/ethQty * /appState/sheet/ethPrice + /appState/sheet/solQty * /appState/sheet/solPrice + /appState/sheet/usdcQty * /appState/sheet/usdcPrice)"
+                                    "=": "(=/appState/sheet/solQty * =/appState/sheet/solPrice) / (=/appState/sheet/btcQty * =/appState/sheet/btcPrice + =/appState/sheet/ethQty * =/appState/sheet/ethPrice + =/appState/sheet/solQty * =/appState/sheet/solPrice + =/appState/sheet/usdcQty * =/appState/sheet/usdcPrice)"
                                   },
                                   1
                                 ]
@@ -449,7 +449,7 @@
                             "class": "cell cell-numeric",
                             "children": [
                               {
-                                "=": "/appState/sheet/usdcQty"
+                                "=": "=/appState/sheet/usdcQty"
                               }
                             ]
                           }
@@ -461,7 +461,7 @@
                               {
                                 "=currency": [
                                   {
-                                    "=": "/appState/sheet/usdcPrice"
+                                    "=": "=/appState/sheet/usdcPrice"
                                   }
                                 ]
                               }
@@ -475,7 +475,7 @@
                               {
                                 "=currency": [
                                   {
-                                    "=": "/appState/sheet/usdcQty * /appState/sheet/usdcPrice"
+                                    "=": "=/appState/sheet/usdcQty * =/appState/sheet/usdcPrice"
                                   }
                                 ]
                               }
@@ -489,7 +489,7 @@
                               {
                                 "=percent": [
                                   {
-                                    "=": "(/appState/sheet/usdcQty * /appState/sheet/usdcPrice) / (/appState/sheet/btcQty * /appState/sheet/btcPrice + /appState/sheet/ethQty * /appState/sheet/ethPrice + /appState/sheet/solQty * /appState/sheet/solPrice + /appState/sheet/usdcQty * /appState/sheet/usdcPrice)"
+                                    "=": "(=/appState/sheet/usdcQty * =/appState/sheet/usdcPrice) / (=/appState/sheet/btcQty * =/appState/sheet/btcPrice + =/appState/sheet/ethQty * =/appState/sheet/ethPrice + =/appState/sheet/solQty * =/appState/sheet/solPrice + =/appState/sheet/usdcQty * =/appState/sheet/usdcPrice)"
                                   },
                                   1
                                 ]
@@ -563,7 +563,7 @@
                               {
                                 "=currency": [
                                   {
-                                    "=": "/appState/sheet/btcQty * /appState/sheet/btcPrice + /appState/sheet/ethQty * /appState/sheet/ethPrice + /appState/sheet/solQty * /appState/sheet/solPrice + /appState/sheet/usdcQty * /appState/sheet/usdcPrice"
+                                    "=": "=/appState/sheet/btcQty * =/appState/sheet/btcPrice + =/appState/sheet/ethQty * =/appState/sheet/ethPrice + =/appState/sheet/solQty * =/appState/sheet/solPrice + =/appState/sheet/usdcQty * =/appState/sheet/usdcPrice"
                                   }
                                 ]
                               }

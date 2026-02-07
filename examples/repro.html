@@ -22,12 +22,12 @@
                     {
                         "div": {
                             "style": "color: blue",
-                            "children": ["Hello ", { "=": "/app/user" }]
+                            "children": ["Hello ", { "=": "=/app/user" }]
                         }
                     },
                     {
                         "button": {
-                            "onclick": { "=log": ["Clicked button by ", { "=": "/app/user" }] },
+                            "onclick": { "=log": ["Clicked button by ", { "=": "=/app/user" }] },
                             "children": ["Click Me (Check Console)"]
                         }
                     },
@@ -36,7 +36,7 @@
                             "style": "margin-top: 10px;",
                             "children": [
                                 "Helper Output: ",
-                                { "=log": ["Line 1", "Line 2", { "=": "/app/count" }] }
+                                { "=log": ["Line 1", "Line 2", { "=": "=/app/count" }] }
                             ]
                         }
                     }

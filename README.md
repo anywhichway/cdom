@@ -57,9 +57,9 @@ Download `cdom.js` and include it in your project:
                 },
                 children: [
                     { h2: "Counter Example" },
-                    { p: ["Count: ", { "=": "/counter/count" }] },
+                    { p: ["Count: ", { "=": "=/counter/count" }] },
                     { button: { 
-                        onclick: { "=increment": ["/counter"] }, 
+                        onclick: { "=increment": ["=/counter"] }, 
                         children: ["Increment"] 
                     }}
                 ]
@@ -85,10 +85,10 @@ function Counter(initialValue = 0) {
             },
             children: [
                 { h3: "Counter" },
-                { p: ["Current: ", { "=": "/local/count" }] },
+                { p: ["Current: ", { "=": "=/local/count" }] },
                 // Structural event handler
                 { button: { 
-                     onclick: { "=increment": ["/local"] }, 
+                     onclick: { "=increment": ["=/local"] }, 
                      children: ["+"] 
                 }}
             ]
@@ -108,30 +108,37 @@ cDOM({
 
 ### 1. Structural Reactivity (The `=` Key)
 
-cDOM v0.0.10 moves away from complex string parsing (`_()`) in favor of **structural reactivity**. You express logic using JSON keys starting with `=`.
+cDOM v0.0.12+ uses **structural reactivity**. You express logic using JSON keys starting with `=`.
 
 **State Lookup:**
 ```javascript
-{ "=": "/user/name" } // Resolves to state value
+{ "=": "=/user/name" }  // State reference requires =/ prefix
 ```
 
-**Math Expressions:**
-For simple math, you can still use string expressions inside the value:
+**The `=/` Sigil:**
+To avoid ambiguity between URL paths (like `/api/users`) and state paths, cDOM **requires** the `=/` prefix for all state references:
+
 ```javascript
-{ "=": "/price * /quantity" }
+// Literals (no =/ prefix) vs State references (=/ prefix required)
+{ "=concat": ["/api/space/", "=/currentSpace", "/participants.cdom"] }
+
+// In expressions
+{ "=": "=/count * 2" }           // State reference in expression
+{ "=": "10 / =/count" }          // Division by state value
+{ "=": "=/price * =/quantity" }  // Multiple state refs
 ```
 
 **Helper Calls:**
 Complex logic uses the key as the helper name:
 ```javascript
-{ "=increment": ["/counter"] } // Calls 'increment' helper with resolving args
+{ "=increment": ["=/counter"] } // Calls 'increment' helper with state reference
 ```
 
 **Direct Operators:**
 You can use mathematical and logical operators directly as keys:
 ```javascript
-{ "*": ["/price", "/qty"] }
-{ ">=": ["/age", 18] }
+{ "*": ["=/price", "=/qty"] }
+{ ">=": ["=/age", 18] }
 ```
 
 ### 3. Sequential Actions (Array Handlers)
