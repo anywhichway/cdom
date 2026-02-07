@@ -1,3 +1,4 @@
+// Example: { onclick: { "=push": ["/list", "new item"] } }
 import set from './set.js';
 const push = function (target, item) {
     const current = (target && typeof target === 'object' && 'value' in target) ? target.value : [];

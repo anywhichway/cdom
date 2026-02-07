@@ -1,3 +1,4 @@
+// Example: { onclick: { "=assign": ["/user", { "name": "Bob", "age": 30 }] } }
 import set from './set.js';
 const assign = function (target, obj) {
     const current = (target && typeof target === 'object' && 'value' in target) ? target.value : {};

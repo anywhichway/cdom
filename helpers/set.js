@@ -1,3 +1,4 @@
+// Example: { onclick: { "=set": ["/app/title", "New Title"] } }
 const set = function (target, val) {
     if (target && typeof target === 'object' && 'value' in target) {
         target.value = val;

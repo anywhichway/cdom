@@ -1,3 +1,4 @@
+// Example: { p: { "=fetch": ["https://api.example.com/data"] } }
 export default function (url, options = {}) {
     const fetchOptions = { ...options };
     const headers = { ...fetchOptions.headers };

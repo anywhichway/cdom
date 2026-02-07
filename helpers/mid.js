@@ -1,3 +1,4 @@
+// Example: { p: { "=mid": ["Hello", 2, 3] } }
 export default function (text, start, length) {
     if (typeof text !== 'string') text = String(text);
     // Excel MID is 1-indexed, but since we are following JS names primarily,

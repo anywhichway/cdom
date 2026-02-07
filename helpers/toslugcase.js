@@ -1,3 +1,4 @@
+// Example: { p: { "=toslugcase": ["Hello World!"] } }
 export default function (val) {
     return String(val)
         .toLowerCase()

@@ -1,3 +1,4 @@
+// Example: { p: { "=parseLiteral": ["/state/path1", "/state/path2"] } }
 export default function parseLiteral(text) {
     let at = 0;
     const ch = () => text.charAt(at);

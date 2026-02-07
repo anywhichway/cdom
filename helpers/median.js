@@ -1,3 +1,4 @@
+// Example: { p: { "=median": [10, 20, 30] } }
 export default function (...args) {
     const nums = args.flat(Infinity).map(Number).filter(n => !isNaN(n)).sort((a, b) => a - b);
     if (nums.length === 0) return 0;

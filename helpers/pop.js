@@ -1,3 +1,4 @@
+// Example: { onclick: { "=pop": ["/list"] } }
 import set from './set.js';
 const pop = function (target) {
     const current = (target && typeof target === 'object' && 'value' in target) ? target.value : [];

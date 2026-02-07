@@ -1,3 +1,4 @@
+// Example: { onclick: { "=increment": ["/counter/count", 1] } }
 import set from './set.js';
 const increment = function (target, by = 1) {
     const hasValue = target && (typeof target === 'object' || typeof target === 'function') && 'value' in target;

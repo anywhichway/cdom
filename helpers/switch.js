@@ -1,3 +1,4 @@
+// Example: { p: { "=switch": [2, 1, "One", 2, "Two", "Default"] } }
 export default function (expression, ...args) {
     for (let i = 0; i < args.length - 1; i += 2) {
         if (expression === args[i]) return args[i + 1];

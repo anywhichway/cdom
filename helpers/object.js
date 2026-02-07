@@ -1,3 +1,4 @@
+// Example: { p: { "=object": ["{\"key\": \"value\"}"] } }
 import parseLiteral from './parseLiteral.js';
 
 export default function object(jsonString) {

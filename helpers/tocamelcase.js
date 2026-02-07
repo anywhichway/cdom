@@ -1,3 +1,4 @@
+// Example: { p: { "=tocamelcase": ["Hello World"] } }
 export default function (val) {
     return String(val)
         .replace(/(?:^\w|[A-Z]|\b\w)/g, (word, index) =>

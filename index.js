@@ -1,5 +1,5 @@
 (function () {
-    /* global document, window, MutationObserver, queueMicrotask, XPathResult, Node, NodeFilter, globalThis, console, URL, fetch, setTimeout, clearTimeout */
+    /* global document, window, MutationObserver, queueMicrotask, XPathResult, Node, NodeFilter, globalThis, console, URL, setTimeout, clearTimeout */
     const symbolicOperators = new Map([
         ['+', 'add'], ['-', 'subtract'], ['*', 'multiply'], ['/', 'divide'],
         ['==', 'eq'], ['!=', 'neq'], ['>', 'gt'], ['<', 'lt'], ['>=', 'gte'], ['<=', 'lte'],
@@ -403,7 +403,7 @@
 
         const applyTransform = (v) => {
             if (!transform) return v;
-            const fn = typeof transform === 'function' ? transform : getHelper(transform);
+            const fn = typeof transform === 'function' ? transform : getHelper(transform, options.unsafe);
             return fn ? fn(v) : v;
         };
 
@@ -693,17 +693,20 @@
     helpers.set('String', v => String(v));
     helpers.set('Boolean', v => !!v);
 
-    function getHelper(name) {
+    function getHelper(name, unsafe) {
         if (helpers.has(name)) return helpers.get(name);
 
-        const parts = name.split('.');
-        let obj = globalThis;
-        for (let i = 0; i < parts.length; i++) {
-            obj = obj?.[parts[i]];
-        }
-        if (typeof obj === 'function') {
-            helpers.set(name, obj);
-            return obj;
+        const isUnsafe = unsafe || currentSubscriber?.unsafe;
+        if (isUnsafe) {
+            const parts = name.split('.');
+            let obj = globalThis;
+            for (let i = 0; i < parts.length; i++) {
+                obj = obj?.[parts[i]];
+            }
+            if (typeof obj === 'function') {
+                helpers.set(name, obj);
+                return obj;
+            }
         }
 
         loadHelper(name);
@@ -766,12 +769,12 @@
     }
 
 
-    function evaluateStructural(obj, context, event) {
+    function evaluateStructural(obj, context, event, unsafe) {
         if (typeof obj !== 'object' || obj === null || obj.nodeType) return obj;
         obj = unwrap(obj);
 
         if (Array.isArray(obj)) {
-            return obj.map(item => evaluateStructural(item, context, event));
+            return obj.map(item => evaluateStructural(item, context, event, unsafe));
         }
 
         const keys = Object.keys(obj);
@@ -797,7 +800,7 @@
         const alias = symbolicOperators.get(key);
         if (key.startsWith('=') || alias) {
             const helperName = alias || key.slice(1);
-            const helperFn = getHelper(helperName);
+            const helperFn = getHelper(helperName, unsafe);
             if (helperFn) {
                 const args = Array.isArray(val) ? val : [val];
                 const resolvedArgs = args.map(arg => {
@@ -820,7 +823,7 @@
                         return evaluateStateExpression(arg, context, event);
                     }
                     if (typeof arg === 'object' && arg !== null && !arg.nodeType) {
-                        return evaluateStructural(arg, context, event);
+                        return evaluateStructural(arg, context, event, unsafe);
                     }
                     return arg;
                 });
@@ -844,7 +847,7 @@
             if (isPath) {
                 result[k] = evaluateStateExpression(v, context, event);
             } else if (typeof v === 'object' && v !== null && !v.nodeType) {
-                result[k] = evaluateStructural(v, context, event);
+                result[k] = evaluateStructural(v, context, event, unsafe);
             } else {
                 result[k] = v;
             }
@@ -1030,7 +1033,7 @@
             }
             if (sub.structural) {
                 currentSubscriber = sub;
-                const result = evaluateStructural(sub.structural, sub.contextNode);
+                const result = evaluateStructural(sub.structural, sub.contextNode, null, sub.unsafe);
                 currentSubscriber = null;
                 const newValue = String(result ?? '');
                 if (sub.node instanceof Attr) {
@@ -1112,7 +1115,7 @@
             const sub = {
                 node: placeholder,
                 contextNode: context,
-                fn: (event) => evaluateStructural(onode, context, event),
+                fn: (event) => evaluateStructural(onode, context, event, unsafe),
                 wasString,
                 unsafe
             };
@@ -1160,18 +1163,18 @@
                         if (key === 'oncreate') try { val.call(el); } catch (e) { }
                         else el.onmount = val;
                     } else if (typeof val === 'object' && val !== null) {
-                        if (key === 'oncreate') try { evaluateStructural(val, el); } catch (e) { }
-                        else el.onmount = () => evaluateStructural(val, el);
+                        if (key === 'oncreate') try { evaluateStructural(val, el, null, unsafe); } catch (e) { }
+                        else el.onmount = () => evaluateStructural(val, el, null, unsafe);
                     }
                 } else if (key.startsWith('on')) {
                     if (typeof val === 'function') {
                         el[key] = val;
                     } else if (typeof val === 'object' && val !== null) {
-                        el[key] = (event) => evaluateStructural(val, el, event);
+                        el[key] = (event) => evaluateStructural(val, el, event, unsafe);
                     }
                 } else {
                     if (typeof val === 'object' && val !== null) {
-                        const sub = { node: el, contextNode: el, fn: (event) => evaluateStructural(val, el, event) };
+                        const sub = { node: el, contextNode: el, fn: (event) => evaluateStructural(val, el, event, unsafe), unsafe };
                         currentSubscriber = sub;
                         const initial = sub.fn();
                         currentSubscriber = null;
@@ -1266,7 +1269,7 @@
             const url = new URL(srcValue, window.location.href);
             const options = { method };
             if (body) options.body = body;
-            const response = await fetch(url.href);
+            const response = await globalThis.fetch(url.href);
             if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
             const contentType = response.headers.get('content-type') || '';

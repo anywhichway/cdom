@@ -273,6 +273,15 @@ These can be used directly as keys in your cDOM structure (e.g., `{ "+": [1, 2] 
 
 Helpers are dynamically loaded if not already registered. You can use them structurally (e.g., `{ "=sum": [1, 2] }`) or within expression strings.
 
+#### Dynamic Loading
+If a helper is used but not registered via `cDOM.helper()`, the engine attempts to load it dynamically.
+1. It checks for the function in the `globalThis` scope (e.g., `Math.abs`), but **only if the `unsafe` option is enabled** in the `cDOM()` call.
+2. If the function is not found or `unsafe` is false, it attempts to fetch a JavaScript file from the `/helpers/` directory relative to the `index.js` script.
+   - For example, `{ "=currency": [...] }` will attempt to load `/helpers/currency.js`.
+   - Nested namespaces like `Formatting.Currency` will attempt to load `/helpers/formatting/currency.js`.
+
+The dynamic loader uses the `default` export of the imported module as the helper function.
+
 #### Math & Statistics
 `abs`, `add`, `average`, `avg`, `ceil`, `ceiling`, `floor`, `int`, `max`, `median`, `min`, `mod`, `multiply`, `percent`, `pow`, `power`, `rand`, `random`, `round`, `sign`, `sqrt`, `stddev`, `stdev`, `subtract`, `sum`, `trunc`, `var`, `variance`
 

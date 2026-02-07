@@ -1,3 +1,4 @@
+// Example: { p: { "=average": [10, 20, 30] } }
 import sum from './sum.js';
 export default function (...args) {
     const flat = args.flat(Infinity);

@@ -1,3 +1,4 @@
+// Example: { p: { "=variance": [1, 2, 3, 4, 5] } }
 export default function (...args) {
     const nums = args.flat(Infinity).map(Number).filter(n => !isNaN(n));
     if (nums.length === 0) return 0;
