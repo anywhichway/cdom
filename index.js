@@ -41,7 +41,7 @@
 
         function tokenize(src) {
             const results = [];
-            const tokenRegex = /\s*(\d*\.\d+|\d+|"([^"\\]|\\.)*"|'([^'\\]|\\.)*'|=\/|\.{1,2}\/|\/|\$this|\$event|[a-zA-Z_$][\w$]*|==|!=|<=|>=|&&|\|\||[-+*/%^<>!?:.,(){}[\]])\s*/g;
+            const tokenRegex = /\s*(\d*\.\d+|\d+|"([^"\\]|\\.)*"|'([^'\\]|\\.)*'|=\/|=\$this|=\$event|=\$query|=\$|\$this|\$event|\$query|[a-zA-Z_$][\w$]*|==|!=|<=|>=|&&|\|\||[-+*/%^<>!?:.,(){}[\]])\s*/g;
             let match;
             while ((match = tokenRegex.exec(src)) !== null) {
                 results.push(match[1]);
@@ -272,9 +272,11 @@
                 return createPathFunction(path, 'state');
             }
 
-            // Handle $this and $event
-            if (t === '$this' || t === '$event') {
+            // Handle $this and $event (and deprecated $this/$event)
+            if (t === '=$this' || t === '=$event' || t === '$this' || t === '$event') {
+                const isDeprecated = !t.startsWith('=');
                 let path = t;
+                if (!isDeprecated) path = t.slice(1);
                 // Check for property access
                 while (true) {
                     const p = peek();
@@ -292,14 +294,15 @@
                         break;
                     }
                 }
-                if (path === '$this') return (ctx) => ctx;
-                if (path === '$event') return (ctx, ev) => ev;
+                const root = path === '$this' ? (ctx) => ctx : (ctx, ev) => ev;
+                if (path === '$this') return root;
+                if (path === '$event') return root;
                 if (path.startsWith('$this.') || path.startsWith('$this/')) return createPathFunction(path.slice(6), '$this');
                 if (path.startsWith('$event.') || path.startsWith('$event/')) return createPathFunction(path.slice(7), '$event');
             }
 
-            // Handle $.propertyName (macro argument reference)
-            if (t === '$') {
+            // Handle $.propertyName and =$$.propertyName
+            if (t === '$' || t === '=$') {
                 const p = peek();
                 if (p === '.') {
                     next(); // consume '.'
@@ -322,6 +325,33 @@
                     }
                     return createPathFunction(path, '$macro');
                 }
+            }
+
+            // Handle $query.propertyName and =$query.propertyName
+            if (t === '$query' || t === '=$query') {
+                const p = peek();
+                if (p === '.') {
+                    next(); // consume '.'
+                    let path = '';
+                    while (true) {
+                        const tok = peek();
+                        if (tok && /^[\w$]/.test(tok)) {
+                            path += next();
+                        } else if (tok === '.' || tok === '/') {
+                            const nextTok = peek(1);
+                            if (nextTok && /^[\w$]/.test(nextTok)) {
+                                path += next(); // eat . or /
+                                path += next(); // eat identifier
+                            } else {
+                                break;
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                    return createPathFunction(path, '$query');
+                }
+                return (ctx) => findContext(ctx, '_queryContext');
             }
 
             // Bareword: helper or error
@@ -881,7 +911,11 @@
 
     function evaluateStructural(obj, context, event, unsafe) {
         if (typeof obj !== 'object' || obj === null || obj.nodeType) {
-            // Check if it's a string starting with '$.' (macro argument reference)
+            // Check if it's a string starting with '=' (dynamic reference)
+            if (typeof obj === 'string' && obj.startsWith('=')) {
+                return evaluateStateExpression(obj, context, event);
+            }
+            // Temporarily support deprecated bare $. for backward compatibility
             if (typeof obj === 'string' && obj.startsWith('$.')) {
                 return evaluateStateExpression(obj, context, event);
             }
@@ -1018,6 +1052,15 @@
         return registry.get(name);
     }
 
+    function findContext(node, key) {
+        let curr = node;
+        while (curr) {
+            if (curr[key]) return curr[key];
+            curr = curr.parentNode || curr.host || curr._lv_parent;
+        }
+        return null;
+    }
+
     function evaluateStateExpression(expression, contextNode, event) {
         let compiled = stateExpressionCache.get(expression);
         if (!compiled) {
@@ -1052,7 +1095,8 @@
             let root;
             if (type === '$this') root = ctx;
             else if (type === '$event') root = ev;
-            else if (type === '$macro') root = ctx?._macroContext;
+            else if (type === '$macro') root = findContext(ctx, '_macroContext');
+            else if (type === '$query') root = findContext(ctx, '_queryContext');
             else root = findInScope(ctx, name);
 
             if (!root) return (type === 'state') ? `[Unknown: ${name}]` : undefined;
@@ -1255,6 +1299,9 @@
         }
 
         if (typeof onode !== 'object') {
+            if (typeof onode === 'string' && onode.startsWith('=') && onode.length > 1) {
+                return cdomToDOM({ "=": onode }, wasString, unsafe, context);
+            }
             return document.createTextNode(onode);
         }
 
@@ -1305,7 +1352,14 @@
         const el = document.createElement(tag);
         if (context) Object.defineProperty(el, '_lv_parent', { value: context, enumerable: false, configurable: true });
 
-        if (typeof content === 'object' && content !== null && !Array.isArray(content) && !content.nodeType) {
+        // Check if content is a structural reference object itself
+        const isStructural = (obj) => {
+            if (typeof obj !== 'object' || obj === null || Array.isArray(obj) || obj.nodeType) return false;
+            const keys = Object.keys(obj);
+            return keys.length === 1 && (keys[0] === '=' || keys[0] === '$' || keys[0].startsWith('=') || symbolicOperators.has(keys[0]));
+        };
+
+        if (typeof content === 'object' && content !== null && !Array.isArray(content) && !content.nodeType && !isStructural(content)) {
             for (const key in content) {
                 const val = content[key];
                 if (key === 'children') {
@@ -1404,8 +1458,10 @@
             return;
         }
 
-        // Check if it's a CSS selector (doesn't start with http/https or /)
-        if (!srcValue.startsWith('http') && !srcValue.startsWith('/') && !srcValue.startsWith('./') && !srcValue.startsWith('../')) {
+        // Check if it's a CSS selector
+        // We avoid querySelector if it looks like a file path or URL to prevent DOMException
+        const isUrlLike = srcValue.includes('/') || srcValue.includes('?');
+        if (!isUrlLike && !srcValue.startsWith('http')) {
             try {
                 const source = document.querySelector(srcValue);
                 if (source) {
@@ -1434,13 +1490,17 @@
 
             const contentType = response.headers.get('content-type') || '';
             const text = await response.text();
+            const pathname = url.pathname.toLowerCase();
 
             // Determine how to handle content
-            const isCDOM = srcValue.endsWith('.cdom') || contentType.includes('application/cdom');
-            const isHTML = contentType.includes('text/html') || srcValue.endsWith('.html') || srcValue.endsWith('.htm');
+            const isCDOM = pathname.endsWith('.cdom') || contentType.includes('application/cdom') || contentType.includes('application/json');
+            const isHTML = pathname.endsWith('.html') || pathname.endsWith('.htm') || contentType.includes('text/html');
 
             if (isCDOM) {
                 const cdomData = JSON.parse(text);
+                const query = Object.fromEntries(url.searchParams.entries());
+                element._queryContext = query;
+                if (!element._macroContext) element._macroContext = query;
                 const dom = cdomToDOM(cdomData, true, false, element);
                 element.replaceChildren(dom);
             } else if (isHTML) {

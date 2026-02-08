@@ -1,6 +1,6 @@
 {
   "name": "cdom",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "description": "Safe, reactive UIs based on JSON Pointer, XPath, JSON Schema",
   "keywords": [
     "JPRX",

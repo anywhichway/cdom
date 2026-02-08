@@ -316,9 +316,9 @@ Macros allow you to define reusable logic templates entirely in JSON, without wr
     },
     "body": {
       "*": [
-        "$.basePrice",
-        { "+": [1, "$.taxRate"] },
-        { "-": [1, "$.discount"] }
+        "=$.basePrice",
+        { "+": [1, "=$.taxRate"] },
+        { "-": [1, "=$.discount"] }
       ]
     }
   }
@@ -328,7 +328,7 @@ Macros allow you to define reusable logic templates entirely in JSON, without wr
 **Fields:**
 - **`name`**: The macro identifier (becomes a callable helper)
 - **`schema`** (optional): JSON Schema for input validation
-- **`body`**: The template structure using `$.propertyName` to reference inputs
+- **`body`**: The template structure using `=$.propertyName` to reference inputs
 
 #### Calling a Macro
 
@@ -358,9 +358,67 @@ Result: `97.2` (100 × 1.08 × 0.90)
 }
 ```
 
-### 10. Object-Based Helper Arguments
+### 10. Hypermedia Query Parameters (`$query`)
 
-Helpers can now accept either **positional arguments** (array) or **named arguments** (object):
+When loading `.cdom` files via the `src` or `href` attributes, you can pass parameters via the query string. These parameters are automatically available within the loaded component as **implicit macro arguments**.
+
+#### Basic Usage
+
+URL: `profile.cdom?name=Joe&id=123`
+
+```json
+{
+  "div": {
+    "children": [
+      { "h2": ["Hello, ", "=$.name"] },
+      { "p": ["User ID: ", "=$.id"] }
+    ]
+  }
+}
+```
+
+#### Collision Resolution (`=$query`)
+
+If you are inside a macro that uses the same argument name as a query parameter, the macro argument **shadows** the query parameter. To access the original URL parameters explicitly, use the `=$query` sigil.
+
+```json
+{
+  "=greet": { "name": "MacroUser" } 
+}
+// Inside the greet macro body:
+{ "p": ["Hello ", "=$.name"] }       // Returns "Hello MacroUser"
+{ "p": ["Original ", "=$query.name"] } // Returns "Original Joe"
+```
+
+### 11. The Dynamic Sigil Standard (`=`)
+
+To ensure zero ambiguity between literal strings and dynamic references, cDOM follows a strict rule: **Everything dynamic starts with `=`.**
+
+| Sigil | Target | Description |
+| :--- | :--- | :--- |
+| **`=/`** | Global State | Look up value in in-memory state proxy |
+| **`=$.`** | Macro Argument | Reference an input passed to the current macro |
+| **`=$this`** | Context Node | Reference the current DOM element |
+| **`=$event`** | Logic Event | Reference the current DOM event (in handlers) |
+| **`=$query`** | URL Query | Explicitly access Hypermedia URL parameters |
+
+#### Shorthand Child Evaluation
+As of v2.6.0, you can place these strings directly as children without an object wrapper:
+
+```json
+// ✅ Cleanest (Recommended)
+{ "h1": "=$.title" }
+
+// ✅ Also works
+{ "h1": { "=": "=$.title" } }
+
+// ⚠️ Deprecated
+{ "h1": { "=": "$.title" } }
+```
+
+### 11. Object-Based Helper Arguments
+
+Helpers can accept either **positional arguments** (array) or **named arguments** (object):
 
 **Positional (traditional):**
 ```json

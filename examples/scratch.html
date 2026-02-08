@@ -1,9 +1,15 @@
+<!DOCTYPE html>
 <html>
-<script src="../index.js"></script>
 
-<body>
+<head>
+    <title>cDOM | Scratchpad</title>
+    <script src="../index.js"></script>
+</head>
+
+<body style="font-family: 'Inter', sans-serif; padding: 2rem; line-height: 1.6;">
     <script>
         const { $, _ } = cDOM;
+
         cDOM.helper('increment', (ref) => {
             if (ref && typeof ref === 'object' && 'value' in ref) ref.value++;
             else if (ref && typeof ref === 'object' && ref.count !== undefined) ref.count++;
@@ -27,42 +33,44 @@
                     console.log('App mounted to DOM!', this);
                 },
                 children: [
-                    "App Name: ", { "=": "=/appName" }, { br: {} },
-                    "Local Counter (Scoped): ", { "=": "=/localCounter/count" },
+                    { h1: "cDOM Scratchpad" },
+                    "App Name: ", "=/appName", { br: {} },
+                    "Local Counter (Scoped): ", "=/localCounter/count",
                     {
-                        button: {
-                            onclick: [
-                                { "=log": ["Starting array execution..."] },
-                                { "++": ["=/localCounter/count"] },
-                                { "=log": ["Counter is now:", "=/localCounter/count"] },
-                                { "set": ["=/appName", "cDOM Rocked!"] }
-                            ],
-                            children: ["Array Handler Demo"]
+                        div: {
+                            style: "margin: 1.5rem 0",
+                            children: [
+                                {
+                                    button: {
+                                        onclick: [
+                                            { "=log": ["Starting array execution..."] },
+                                            { "++": ["=/localCounter/count"] },
+                                            { "=log": ["Counter is now:", "=/localCounter/count"] },
+                                            { "set": ["=/appName", "cDOM Rocked!"] }
+                                        ],
+                                        children: ["Array Handler Demo"]
+                                    }
+                                }
+                            ]
                         }
                     },
                     {
                         div: {
+                            style: "background: #f8fafc; padding: 1.5rem; border-radius: 12px; border: 1px solid #e2e8f0;",
                             children: [
+                                "This div can also see the local counter: ", "=/localCounter/count",
                                 { br: {} },
-                                "This div can also see the local counter: ", { "=": "=/localCounter/count" },
-                                { br: {} },
-                                { br: {} },
-                                "Math expression (count * 2 + 5): ", { "=": "=/localCounter/count * 2 + 5" },
-                                { br: {} },
-                                { br: {} },
+                                { b: ["Math expression (count * 2 + 5): ", "=/localCounter/count * 2 + 5"] },
+                                { hr: { style: "margin: 1.5rem 0; border: 0; border-top: 1px solid #e2e8f0;" } },
                                 {
                                     div: {
-                                        style: {
-                                            "margin-top": "10px",
-                                            "color": "#666",
-                                            "font-size": "0.9em"
-                                        },
+                                        style: "font-size: 0.9em; color: #64748b; font-family: monospace;",
                                         children: [
-                                            "XPath (Active Button Count): ", { "$": "count(//button)" }, { br: {} },
-                                            "XPath (Button Label): ", { "$": "//button/text()" }, { br: {} },
-                                            "Dynamic Helper { =sum: [1, 2, 3] }: ", { "=sum": [1, 2, 3] }, { br: {} },
-                                            "Dynamic Helper{ =currency: [=/localCounter/count] }: ", { "=currency": ["=/localCounter/count"] }, { br: {} },
-                                            "Undefined Helper: ", { "=This.Should.Not.Exist": [] }
+                                            { div: ["XPath (Active Button Count): ", { "$": "count(//button)" }] },
+                                            { div: ["XPath (Button Label): ", { "$": "//button/text()" }] },
+                                            { div: ["Dynamic Helper { =sum: [1, 2, 3] }: ", { "=sum": [1, 2, 3] }] },
+                                            { div: ["Dynamic Helper { =currency: [=/localCounter/count] }: ", { "=currency": ["=/localCounter/count"] }] },
+                                            { div: ["Undefined Helper: ", { "=This.Should.Not.Exist": [] }] }
                                         ]
                                     }
                                 }
@@ -71,7 +79,7 @@
                     }
                 ]
             }
-        }, {})
+        });
     </script>
 </body>
 

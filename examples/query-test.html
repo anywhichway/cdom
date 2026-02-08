@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>cDOM Query Param Test</title>
+    <script src="../index.js"></script>
+</head>
+
+<body style="padding: 2rem; font-family: sans-serif;">
+    <h1>cDOM Query Parameter Testing</h1>
+
+    <div style="margin-bottom: 2rem;">
+        <h3>Dynamic Load (Hypermedia)</h3>
+        <p>Loading <code>profile.cdom?name=Joe&location=London&id=123</code></p>
+        <div src="profile.cdom?name=Joe&location=London&id=123"></div>
+    </div>
+
+    <hr>
+
+    <div style="margin-bottom: 2rem;">
+        <h3>Another Load</h3>
+        <p>Loading <code>profile.cdom?name=Alice&location=New York&id=456</code></p>
+        <div src="profile.cdom?name=Alice&location=New York&id=456"></div>
+    </div>
+</body>
+
+</html>

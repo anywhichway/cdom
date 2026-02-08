@@ -1,0 +1,64 @@
+{
+  "div": {
+    "class": "profile-card",
+    "style": "padding: 1.5rem; background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); border: 1px solid #e5e7eb; font-family: 'Inter', sans-serif;",
+    "children": [
+      {
+        "div": {
+          "style": "display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;",
+          "children": [
+            {
+              "div": {
+                "style": "width: 48px; height: 48px; background: #6366f1; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 1.25rem;",
+                "children": [{ "=left": ["=$.name", 1] }]
+              }
+            },
+            {
+              "div": {
+                "children": [
+                  { "h3": { "style": "margin: 0; color: #111827;", "children": ["=$.name"] } },
+                  { "p": { "style": "margin: 0; color: #6b7280; font-size: 0.875rem;", "children": ["=$.role"] } }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      {
+        "div": {
+          "style": "font-size: 0.875rem; color: #374151; display: flex; flex-direction: column; gap: 0.5rem;",
+          "children": [
+            { "div": ["📍 Region: ", { "b": "=$.region" }] },
+            { "div": ["🔑 ID: ", { "code": "=$query.id" }] }
+          ]
+        }
+      },
+      {
+        "div": {
+          "style": "margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #f3f4f6;",
+          "oncreate": {
+            "=macro": {
+              "name": "Badge",
+              "body": {
+                "span": {
+                  "style": "display: inline-flex; align-items: center; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; background: #e0e7ff; color: #4338ca;",
+                  "children": ["=$.label"]
+                }
+              }
+            }
+          },
+          "children": [
+            { "p": { "style": "font-size: 0.75rem; color: #9ca3af; margin-bottom: 0.5rem;", "children": ["Generated via macro shadowing $.name:"] } },
+            { "=Badge": { "label": { "=concat": ["Active: ", "=$.name"] } } },
+            {
+              "p": {
+                "style": "font-size: 0.75rem; color: #9ca3af; margin-top: 0.75rem;",
+                "children": ["Original URL param accessible via $query.name: ", { "b": "=$query.name" }]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

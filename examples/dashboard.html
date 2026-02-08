@@ -143,12 +143,12 @@
                                 {
                                     "div": {
                                         "class": "grid", "children": [
-                                            Metric('Process Load', { "=": "=/cpuUsage" }, '%', '⚡'),
+                                            Metric('Process Load', "=/cpuUsage", '%', '⚡'),
                                             // Using standard helpers 'round'
-                                            Metric('Memory Heap', { "=round": [{ "=": "=/memUsage" }, 1] }, '%', '💾'),
+                                            Metric('Memory Heap', { "=round": ["=/memUsage", 1] }, '%', '💾'),
                                             // Using standard helpers 'fixed' and 'divide'
-                                            Metric('Net Throughput', { "=fixed": [{ "=divide": [{ "=": "=/reqCount" }, 10] }, 1] }, 'k/s', '🚀'),
-                                            Metric('Network Jitter', { "=": "=/latency" }, 'ms', '📡')
+                                            Metric('Net Throughput', { "=fixed": [{ "=divide": ["=/reqCount", 10] }, 1] }, 'k/s', '🚀'),
+                                            Metric('Network Jitter', "=/latency", 'ms', '📡')
                                         ]
                                     }
                                 },
