@@ -41,7 +41,7 @@
 
         function tokenize(src) {
             const results = [];
-            const tokenRegex = /\s*(\d*\.\d+|\d+|"([^"\\]|\\.)*"|'([^'\\]|\\.)*'|=\/|=\$this|=\$event|=\$query|=\$|\$this|\$event|\$query|[a-zA-Z_$][\w$]*|==|!=|<=|>=|&&|\|\||[-+*/%^<>!?:.,(){}[\]])\s*/g;
+            const tokenRegex = /\s*(\d*\.\d+|\d+|"([^"\\]|\\.)*"|'([^'\\]|\\.)*'|=\/|=\$this|=\$event|=\$query|=\$|[a-zA-Z_$][\w$]*|==|!=|<=|>=|&&|\|\||[-+*/%^<>!?:.,(){}[\]])\s*/g;
             let match;
             while ((match = tokenRegex.exec(src)) !== null) {
                 results.push(match[1]);
@@ -272,11 +272,9 @@
                 return createPathFunction(path, 'state');
             }
 
-            // Handle $this and $event (and deprecated $this/$event)
-            if (t === '=$this' || t === '=$event' || t === '$this' || t === '$event') {
-                const isDeprecated = !t.startsWith('=');
-                let path = t;
-                if (!isDeprecated) path = t.slice(1);
+            // Handle =$this and =$event
+            if (t === '=$this' || t === '=$event') {
+                let path = t.slice(1); // Remove the '=' prefix
                 // Check for property access
                 while (true) {
                     const p = peek();
@@ -301,8 +299,8 @@
                 if (path.startsWith('$event.') || path.startsWith('$event/')) return createPathFunction(path.slice(7), '$event');
             }
 
-            // Handle $.propertyName and =$$.propertyName
-            if (t === '$' || t === '=$') {
+            // Handle =$.propertyName
+            if (t === '=$') {
                 const p = peek();
                 if (p === '.') {
                     next(); // consume '.'
@@ -327,8 +325,8 @@
                 }
             }
 
-            // Handle $query.propertyName and =$query.propertyName
-            if (t === '$query' || t === '=$query') {
+            // Handle =$query.propertyName
+            if (t === '=$query') {
                 const p = peek();
                 if (p === '.') {
                     next(); // consume '.'
@@ -915,10 +913,6 @@
             if (typeof obj === 'string' && obj.startsWith('=')) {
                 return evaluateStateExpression(obj, context, event);
             }
-            // Temporarily support deprecated bare $. for backward compatibility
-            if (typeof obj === 'string' && obj.startsWith('$.')) {
-                return evaluateStateExpression(obj, context, event);
-            }
             return obj;
         }
         obj = unwrap(obj);
@@ -966,9 +960,10 @@
                         const v = val[k];
                         const isPath = typeof v === 'string' && (
                             v.startsWith('=/') ||
-                            v.startsWith('$.') ||
-                            v === '$this' || v.startsWith('$this/') || v.startsWith('$this.') ||
-                            v === '$event' || v.startsWith('$event/') || v.startsWith('$event.')
+                            v.startsWith('=$.') ||
+                            v.startsWith('=$this') ||
+                            v.startsWith('=$event') ||
+                            v.startsWith('=$query')
                         );
 
                         if (isPath) {
@@ -987,9 +982,10 @@
                 const resolvedArgs = args.map(arg => {
                     const isPath = typeof arg === 'string' && (
                         arg.startsWith('=/') ||
-                        arg.startsWith('$.') ||
-                        arg === '$this' || arg.startsWith('$this/') || arg.startsWith('$this.') ||
-                        arg === '$event' || arg.startsWith('$event/') || arg.startsWith('$event.')
+                        arg.startsWith('=$.') ||
+                        arg.startsWith('=$this') ||
+                        arg.startsWith('=$event') ||
+                        arg.startsWith('=$query')
                     );
 
                     if (isPath) {

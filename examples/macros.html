@@ -88,8 +88,8 @@
                         "div": {
                             "class": "test-section",
                             "children": [
-                                { "h2": { "children": ["Test 1: Define Macro"] } },
-                                { "p": { "children": ["Defining a macro called 'adjusted_price' with schema validation..."] } },
+                                { "h2": "Test 1: Define Macro" },
+                                { "p": "Defining a macro called 'adjusted_price' with schema validation..." },
                                 { "div": { "class": "json-label", "children": ["Macro Definition:"] } },
                                 {
                                     "pre": {
@@ -108,9 +108,9 @@
                                                     },
                                                     "body": {
                                                         "*": [
-                                                            "$.basePrice",
-                                                            { "+": [1, "$.taxRate"] },
-                                                            { "-": [1, "$.discount"] }
+                                                            "=$.basePrice",
+                                                            { "+": [1, "=$.taxRate"] },
+                                                            { "-": [1, "=$.discount"] }
                                                         ]
                                                     }
                                                 }
@@ -132,9 +132,9 @@
                                         },
                                         "body": {
                                             "*": [
-                                                "$.basePrice",
-                                                { "+": [1, "$.taxRate"] },
-                                                { "-": [1, "$.discount"] }
+                                                "=$.basePrice",
+                                                { "+": [1, "=$.taxRate"] },
+                                                { "-": [1, "=$.discount"] }
                                             ]
                                         }
                                     }
@@ -152,8 +152,8 @@
                         "div": {
                             "class": "test-section",
                             "children": [
-                                { "h2": { "children": ["Test 2: Call Macro with Literal Values"] } },
-                                { "p": { "children": ["Calling macro with basePrice=100, taxRate=0.08, discount=0.10"] } },
+                                { "h2": "Test 2: Call Macro with Literal Values" },
+                                { "p": "Calling macro with basePrice=100, taxRate=0.08, discount=0.10" },
                                 { "div": { "class": "json-label", "children": ["Macro Invocation:"] } },
                                 {
                                     "pre": {
@@ -183,7 +183,7 @@
                                         ]
                                     }
                                 },
-                                { "p": { "children": ["Expected: $97.20 (100 × 1.08 × 0.90)"] } }
+                                { "p": "Expected: $97.20 (100 × 1.08 × 0.90)" }
                             ]
                         }
                     },
@@ -191,8 +191,8 @@
                         "div": {
                             "class": "test-section",
                             "children": [
-                                { "h2": { "children": ["Test 3: Call Macro with State References"] } },
-                                { "p": { "children": ["Calling macro with values from state..."] } },
+                                { "h2": "Test 3: Call Macro with State References" },
+                                { "p": "Calling macro with values from state..." },
                                 { "div": { "class": "json-label", "children": ["Macro Invocation (State References):"] } },
                                 {
                                     "pre": {
@@ -229,8 +229,8 @@
                         "div": {
                             "class": "test-section",
                             "children": [
-                                { "h2": { "children": ["Test 4: Macro Without Schema"] } },
-                                { "p": { "children": ["Defining a simple macro without schema validation..."] } },
+                                { "h2": "Test 4: Macro Without Schema" },
+                                { "p": "Defining a simple macro without schema validation..." },
                                 { "div": { "class": "json-label", "children": ["Macro Definition:"] } },
                                 {
                                     "pre": {
@@ -238,7 +238,7 @@
                                             JSON.stringify({
                                                 "=macro": {
                                                     "name": "simple_sum",
-                                                    "body": { "+": ["$.a", "$.b"] }
+                                                    "body": { "+": ["=$.a", "=$.b"] }
                                                 }
                                             }, null, 4)
                                         ]
@@ -247,11 +247,11 @@
                                 {
                                     "=macro": {
                                         "name": "simple_sum",
-                                        "body": { "+": ["$.a", "$.b"] }
+                                        "body": { "+": ["=$.a", "=$.b"] }
                                     }
                                 },
                                 { "p": { "class": "success", "children": ["✓ simple_sum macro registered (no schema)"] } },
-                                { "p": { "children": ["Calling: simple_sum(a=10, b=25)"] } },
+                                { "p": "Calling: simple_sum(a=10, b=25)" },
                                 { "div": { "class": "json-label", "children": ["Macro Invocation:"] } },
                                 {
                                     "pre": {
@@ -287,8 +287,8 @@
                         "div": {
                             "class": "test-section",
                             "children": [
-                                { "h2": { "children": ["Test 5: Macro With String Operations"] } },
-                                { "p": { "children": ["A macro that formats a greeting..."] } },
+                                { "h2": "Test 5: Macro With String Operations" },
+                                { "p": "A macro that formats a greeting..." },
                                 { "div": { "class": "json-label", "children": ["Macro Definition:"] } },
                                 {
                                     "pre": {
@@ -296,7 +296,7 @@
                                             JSON.stringify({
                                                 "=macro": {
                                                     "name": "greeting",
-                                                    "body": { "=concat": ["Hello, ", "$.name", "!"] }
+                                                    "body": { "=concat": ["Hello, ", "=$.name", "!"] }
                                                 }
                                             }, null, 4)
                                         ]
@@ -305,7 +305,7 @@
                                 {
                                     "=macro": {
                                         "name": "greeting",
-                                        "body": { "=concat": ["Hello, ", "$.name", "!"] }
+                                        "body": { "=concat": ["Hello, ", "=$.name", "!"] }
                                     }
                                 },
                                 { "p": { "class": "success", "children": ["✓ greeting macro registered"] } },
