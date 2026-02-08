@@ -21,7 +21,8 @@
           }
         },
         {
-          "name": "appState"
+          "name": "appState",
+           "storage": "localStorage"
         }
       ]
     },

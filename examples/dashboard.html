@@ -28,16 +28,20 @@
         schema('LogList', { type: 'array', items: 'LogEntry' });
 
         // --- STATE ---
-        const cpu = signal(45, { name: 'cpuUsage', schema: 'Percentage', transform: 'Integer', storage: localStorage });
-        const mem = signal(62, { name: 'memUsage', schema: 'Percentage', transform: 'Number', storage: localStorage });
-        const req = signal(850, { name: 'reqCount', schema: 'Metric', transform: 'Integer', storage: localStorage });
-        const lat = signal(24, { name: 'latency', schema: 'Metric', transform: 'Integer', storage: localStorage });
+        const cpu = signal.get('cpuUsage', { defaultValue: 45, schema: 'Percentage', transform: 'Integer', storage: 'localStorage' });
+        const mem = signal.get('memUsage', { defaultValue: 62, schema: 'Percentage', transform: 'Number', storage: 'localStorage' });
+        const req = signal.get('reqCount', { defaultValue: 850, schema: 'Metric', transform: 'Integer', storage: 'localStorage' });
+        const lat = signal.get('latency', { defaultValue: 24, schema: 'Metric', transform: 'Integer', storage: 'localStorage' });
 
-        const history = state(Array(30).fill(30), { name: 'perfHistory', storage: localStorage });
-        const logs = state([
-            { t: '08:00:00.00', m: 'Security protocol initialized', s: 'info' },
-            { t: '08:01:00.00', m: 'Node cluster synced', s: 'info' }
-        ], { name: 'liveLogs', schema: 'LogList', storage: localStorage });
+        const history = state.get('perfHistory', { defaultValue: Array(30).fill(30), storage: 'localStorage' });
+        const logs = state.get('liveLogs', {
+            defaultValue: [
+                { t: '08:00:00.00', m: 'Security protocol initialized', s: 'info' },
+                { t: '08:01:00.00', m: 'Node cluster synced', s: 'info' }
+            ],
+            schema: 'LogList',
+            storage: 'localStorage'
+        });
 
         // --- CUSTOM HELPERS ---
         // Only keeping the one specific to business logic (Class generation)

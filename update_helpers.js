@@ -30,29 +30,29 @@ files.forEach(file => {
     let example;
     if (mutationHelpers.includes(name) || mutates) {
         if (name === 'toggle') {
-            example = `// Example: { onclick: { "=toggle": ["/user/isActive"] } }`;
+            example = '// Example: { onclick: { "=toggle": ["/user/isActive"] } }';
         } else if (name === 'set' || name === 'assign') {
-            example = \`// Example: { onclick: { "=\${name}": ["/user/name", "Bob"] } }\`;
+            example = `// Example: { onclick: { "=${name}": ["/user/name", "Bob"] } }`;
         } else {
-            example = \`// Example: { onclick: { "=\${name}": ["/counter/count", 1] } }\`;
+            example = `// Example: { onclick: { "=${name}": ["/counter/count", 1] } }`;
         }
     } else if (mathHelpers.includes(name)) {
-        example = \`// Example: { p: { "=\${name}": [10, 20] } }\`;
+        example = `// Example: { p: { "=${name}": [10, 20] } }`;
     } else if (stringHelpers.includes(name)) {
         if (name === 'upper' || name === 'lower') {
-            example = \`// Example: { span: { "=\${name}": ["hello"] } }\`;
+            example = `// Example: { span: { "=${name}": ["hello"] } }`;
         } else {
-            example = \`// Example: { span: { "=\${name}": ["hello", "world"] } }\`;
+            example = `// Example: { span: { "=${name}": ["hello", "world"] } }`;
         }
     } else if (logicHelpers.includes(name)) {
-        example = \`// Example: { div: { "=\${name}": [true, false] } }\`;
+        example = `// Example: { div: { "=${name}": [true, false] } }`;
     } else if (typeHelpers.includes(name)) {
-        example = \`// Example: { div: { "=\${name}": [123] } }\`;
+        example = `// Example: { div: { "=${name}": [123] } }`;
     } else {
-        example = \`// Example: { p: { "=\${name}": ["/state/path"] } }\`;
+        example = `// Example: { p: { "=${name}": ["/state/path"] } }`;
     }
 
-    const newContent = `${ example } \n${ content } `;
+    const newContent = `${example}\n${content}`;
     fs.writeFileSync(filePath, newContent);
-    console.log(`Updated ${ file } `);
+    console.log(`Updated ${file}`);
 });

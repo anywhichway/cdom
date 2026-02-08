@@ -24,30 +24,16 @@
         return val;
     }
 
-    function createPathFunction(pathStr, rootType) {
-        const parts = pathStr.split(/[./]/).filter(p => p !== '');
-        return (ctx, ev) => {
-            let current;
-            let start = 0;
+    const getStorage = (s) => {
+        if (!s) return null;
+        if (typeof s === 'object') return s;
+        try {
+            if (s === 'localStorage' || s === 'window.localStorage') return globalThis.localStorage;
+            if (s === 'sessionStorage' || s === 'window.sessionStorage') return globalThis.sessionStorage;
+        } catch (e) { /* Storage might be blocked */ }
+        return null;
+    };
 
-            if (rootType === '$this') current = ctx;
-            else if (rootType === '$event') current = ev;
-            else {
-                current = findInScope(ctx, parts[0]);
-                if (current === undefined) current = getHelper(parts[0]);
-
-                if (current !== undefined) start = 1;
-                else return undefined;
-            }
-
-            for (let i = start; i < parts.length; i++) {
-                if (current === null || current === undefined) return undefined;
-                current = unwrap(current);
-                current = current[parts[i]];
-            }
-            return current;
-        };
-    }
 
     function createExpression(text) {
         let at = 0;
@@ -312,6 +298,32 @@
                 if (path.startsWith('$event.') || path.startsWith('$event/')) return createPathFunction(path.slice(7), '$event');
             }
 
+            // Handle $.propertyName (macro argument reference)
+            if (t === '$') {
+                const p = peek();
+                if (p === '.') {
+                    next(); // consume '.'
+                    let path = '';
+                    while (true) {
+                        const tok = peek();
+                        if (tok && /^[\w$]/.test(tok)) {
+                            path += next();
+                        } else if (tok === '.' || tok === '/') {
+                            const nextTok = peek(1);
+                            if (nextTok && /^[\w$]/.test(nextTok)) {
+                                path += next(); // eat . or /
+                                path += next(); // eat identifier
+                            } else {
+                                break;
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                    return createPathFunction(path, '$macro');
+                }
+            }
+
             // Bareword: helper or error
             return (ctx, ev) => {
                 const val = findInScope(ctx, t) || getHelper(t);
@@ -422,7 +434,7 @@
 
     function signal(val, options = {}) {
         const name = options.name;
-        const storage = options.storage;
+        const storage = getStorage(options.storage);
         const schema = options.schema;
         const transform = options.transform;
 
@@ -437,16 +449,27 @@
         if (name && storage) {
             const stored = storage.getItem(name);
             if (stored !== null) {
-                try { value = JSON.parse(stored); } catch (e) { /* ignore */ }
+                try {
+                    const parsed = JSON.parse(stored);
+                    value = applyTransform(parsed);
+                } catch (e) { /* ignore */ }
             }
         }
+        if (schema) validate(value, schema);
 
         const s = {
             get value() {
                 if (name && storage) {
                     const stored = storage.getItem(name);
                     if (stored !== null) {
-                        try { value = JSON.parse(stored); } catch (e) { /* ignore */ }
+                        try {
+                            const parsed = JSON.parse(stored);
+                            const transformed = applyTransform(parsed);
+                            if (transformed !== value) {
+                                value = transformed;
+                                if (schema) validate(value, schema);
+                            }
+                        } catch (e) { /* ignore */ }
                     }
                 }
                 if (currentSubscriber) registerDependency(name);
@@ -469,9 +492,15 @@
         return s;
     }
 
+    signal.get = function (name, options = {}) {
+        if (registry.has(name)) return registry.get(name);
+        const val = options.defaultValue !== undefined ? options.defaultValue : null;
+        return signal(val, { ...options, name });
+    };
+
     function state(val, options = {}) {
         const name = options.name;
-        const storage = options.storage;
+        const storage = getStorage(options.storage);
         const schema = options.schema;
         const transform = options.transform;
 
@@ -488,15 +517,27 @@
             if (name && storage) {
                 const stored = storage.getItem(name);
                 if (stored !== null) {
-                    try { value = JSON.parse(stored); } catch (e) { /* ignore */ }
+                    try {
+                        const parsed = JSON.parse(stored);
+                        value = applyTransform(parsed);
+                    } catch (e) { /* ignore */ }
                 }
             }
+            if (schema) validate(value, schema);
+
             if (name && storage) {
                 result = {
                     get value() {
                         const stored = storage.getItem(name);
                         if (stored !== null) {
-                            try { value = JSON.parse(stored); } catch (e) { /* ignore */ }
+                            try {
+                                const parsed = JSON.parse(stored);
+                                const transformed = applyTransform(parsed);
+                                if (transformed !== value) {
+                                    value = transformed;
+                                    if (schema) validate(value, schema);
+                                }
+                            } catch (e) { /* ignore */ }
                         }
                         if (currentSubscriber) registerDependency(name);
                         return value;
@@ -515,7 +556,7 @@
             }
         } else {
             // Deep reactive proxy
-            const makeReactive = (target, path = [], rootObj = val) => {
+            const makeReactive = (target, path = [], rootObj = target) => {
                 // Initial load for root
                 if (path.length === 0 && name && storage) {
                     const stored = storage.getItem(name);
@@ -528,34 +569,18 @@
                         } catch (e) { /* ignore */ }
                     }
                 }
+                if (path.length === 0 && schema) validate(target, schema);
 
                 return new Proxy(target, {
                     get(t, prop) {
                         if (typeof prop !== 'string' || prop === 'constructor' || prop === 'toJSON') return t[prop];
                         if (prop === '_lv_is_proxy') return true;
 
-                        let currentVal = t[prop];
-                        if (name && storage) {
-                            const stored = storage.getItem(name);
-                            if (stored !== null) {
-                                try {
-                                    const root = JSON.parse(stored);
-                                    let nav = root;
-                                    for (const p of path) {
-                                        if (nav && typeof nav === 'object') nav = nav[p];
-                                        else { nav = undefined; break; }
-                                    }
-                                    if (nav && typeof nav === 'object' && nav[prop] !== undefined) {
-                                        currentVal = nav[prop];
-                                    }
-                                } catch (e) { /* ignore */ }
-                            }
-                        }
-
                         if (currentSubscriber) {
                             registerDependency(name);
                         }
 
+                        const currentVal = t[prop];
                         // Recursively wrap nested objects
                         if (currentVal && typeof currentVal === 'object' && !Array.isArray(currentVal)) {
                             return makeReactive(currentVal, [...path, prop], rootObj);
@@ -566,7 +591,6 @@
                         const transformed = applyTransform(value);
                         if (schema) {
                             // Validate the entire root object after this change would be applied
-                            // but since we want to be safe, we can dry-run the change
                             const backup = t[prop];
                             t[prop] = transformed;
                             try {
@@ -595,7 +619,18 @@
         return result;
     }
 
-    state.get = (name) => registry.get(name);
+    state.get = function (name, options = {}) {
+        if (registry.has(name)) return registry.get(name);
+        const val = options.defaultValue !== undefined ? options.defaultValue : null;
+        return state(val, { ...options, name });
+    };
+
+    const session = (val, options = {}) => state(val, { ...options, storage: globalThis.sessionStorage });
+    session.get = function (name, options = {}) {
+        if (registry.has(name)) return registry.get(name);
+        const val = options.defaultValue !== undefined ? options.defaultValue : null;
+        return state(val, { ...options, name, storage: globalThis.sessionStorage });
+    };
 
     function registerDependency(name) {
         if (!name || !currentSubscriber) return;
@@ -717,6 +752,56 @@
     helpers.set('Number', v => Number(v));
     helpers.set('String', v => String(v));
     helpers.set('Boolean', v => !!v);
+    helpers.set('signal', signal);
+    helpers.set('state', state);
+    helpers.set('session', session);
+    helpers.set('signal.get', signal.get);
+    helpers.set('state.get', state.get);
+    helpers.set('session.get', session.get);
+
+    // Macro helper - creates reusable JSON templates
+    helpers.set('macro', function (definition) {
+        const { name, schema: macroSchema, body } = definition;
+        if (!name || !body) {
+            console.error('[cDOM] Macro definition requires "name" and "body"');
+            return;
+        }
+
+        // Register the macro as a new helper
+        const macroFn = function (input) {
+            // Note: input is already resolved by evaluateStructural
+            // Validate input if schema is provided
+            if (macroSchema) {
+                try {
+                    validate(input, macroSchema);
+                } catch (e) {
+                    console.error(`[cDOM] Macro "${name}" validation error:`, e);
+                    throw e;
+                }
+            }
+
+            // Evaluate the body with macro context
+            return evaluateMacroBody(body, this, null, input);
+        };
+
+        // Mark this as a macro so evaluateStructural knows to resolve the object first
+        macroFn.isMacro = true;
+
+        helpers.set(name, macroFn);
+        return `[Macro ${name} registered]`;
+    });
+
+    // Mark macro helper to skip object resolution - it needs the raw definition
+    helpers.get('macro').skipObjectResolution = true;
+
+    // Helper function to evaluate macro body with $ context
+    function evaluateMacroBody(body, context, event, macroContext) {
+        // Store the current macro context on the element
+        // This persists so async helper loading can still access it
+        context._macroContext = macroContext;
+        return evaluateStructural(body, context, event, false);
+    }
+
 
     function getHelper(name, unsafe) {
         if (helpers.has(name)) return helpers.get(name);
@@ -795,7 +880,13 @@
 
 
     function evaluateStructural(obj, context, event, unsafe) {
-        if (typeof obj !== 'object' || obj === null || obj.nodeType) return obj;
+        if (typeof obj !== 'object' || obj === null || obj.nodeType) {
+            // Check if it's a string starting with '$.' (macro argument reference)
+            if (typeof obj === 'string' && obj.startsWith('$.')) {
+                return evaluateStateExpression(obj, context, event);
+            }
+            return obj;
+        }
         obj = unwrap(obj);
 
         if (Array.isArray(obj)) {
@@ -827,10 +918,42 @@
             const helperName = alias || key.slice(1);
             const helperFn = getHelper(helperName, unsafe);
             if (helperFn) {
+                // If val is an object (not array), treat as single named-argument object
+                // UNLESS the helper has skipObjectResolution flag (like macro)
+                if (!Array.isArray(val) && typeof val === 'object' && val !== null) {
+                    // If helper wants raw object, pass it directly
+                    if (helperFn.skipObjectResolution) {
+                        return helperFn.call(context, val);
+                    }
+
+                    // Otherwise resolve the object properties
+                    const resolvedObj = {};
+                    for (const k of Object.keys(val)) {
+                        const v = val[k];
+                        const isPath = typeof v === 'string' && (
+                            v.startsWith('=/') ||
+                            v.startsWith('$.') ||
+                            v === '$this' || v.startsWith('$this/') || v.startsWith('$this.') ||
+                            v === '$event' || v.startsWith('$event/') || v.startsWith('$event.')
+                        );
+
+                        if (isPath) {
+                            resolvedObj[k] = unwrap(evaluateStateExpression(v, context, event));
+                        } else if (typeof v === 'object' && v !== null && !v.nodeType) {
+                            resolvedObj[k] = evaluateStructural(v, context, event, unsafe);
+                        } else {
+                            resolvedObj[k] = v;
+                        }
+                    }
+                    return helperFn.call(context, resolvedObj);
+                }
+
+                // Otherwise, treat as array of positional arguments
                 const args = Array.isArray(val) ? val : [val];
                 const resolvedArgs = args.map(arg => {
                     const isPath = typeof arg === 'string' && (
                         arg.startsWith('=/') ||
+                        arg.startsWith('$.') ||
                         arg === '$this' || arg.startsWith('$this/') || arg.startsWith('$this.') ||
                         arg === '$event' || arg.startsWith('$event/') || arg.startsWith('$event.')
                     );
@@ -842,10 +965,10 @@
                             if (p) {
                                 let path = arg;
                                 if (p === 'state') path = arg.slice(2); // Remove =/ prefix
-                                return createPathFunction(path, p)(context, event);
+                                return createPathFunction(path, p)(context, event, context._macroContext);
                             }
                         }
-                        return evaluateStateExpression(arg, context, event);
+                        return unwrap(evaluateStateExpression(arg, context, event));
                     }
                     if (typeof arg === 'object' && arg !== null && !arg.nodeType) {
                         return evaluateStructural(arg, context, event, unsafe);
@@ -929,9 +1052,21 @@
             let root;
             if (type === '$this') root = ctx;
             else if (type === '$event') root = ev;
+            else if (type === '$macro') root = ctx?._macroContext;
             else root = findInScope(ctx, name);
 
             if (!root) return (type === 'state') ? `[Unknown: ${name}]` : undefined;
+
+            // For $macro, we access the property directly on the macro context
+            if (type === '$macro') {
+                if (parts.length === 0) return root;
+                let target = root;
+                for (const part of parts) {
+                    if (target === undefined || target === null) return undefined;
+                    target = target[part];
+                }
+                return target;
+            }
 
             // For root-only access
             if (path.length === 0) {
@@ -1460,6 +1595,7 @@
     // Export to global scope
     cDOM.signal = signal;
     cDOM.state = state;
+    cDOM.session = session;
     cDOM.helper = helper;
     cDOM.schema = schema;
     cDOM.validate = validate;

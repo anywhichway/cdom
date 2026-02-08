@@ -241,28 +241,145 @@ oncreate: {
 
 ### 7. Persistence
 
-Sync your signals and state automatically to `localStorage` or `sessionStorage`.
+You can store named session or state objects in Storage objects (e.g. `sessionStorage` or `localStorage`) for persistence. It will be saved any time there is a change. Objects are automatically serialized to JSON and deserialized back to objects.
+
+Both objects and strings are supported for the `storage` value (e.g., `localStorage` or `"localStorage"`).
 
 ```javascript
-// Retrieve on every access, update on every change
-oncreate: {
-    "=signal": [
-        'light', 
-        { name: 'site-theme', storage: localStorage }
-    ]
-}
+// cDOM.session is a shortcut for state with sessionStorage
+const user = session({name:'Guest', theme:'dark'}, {name:'user'});
+
+// Retrieve it elsewhere (even in another file)
+const sameUser = session.get('user');
+
+// Get or create with default value
+const score = session.get('user', {
+    defaultValue: { name: 'Guest', theme: 'dark' }
+});
 ```
 
-### 8. Persistence & Transformations
+#### How Storage Persistence Works
 
-Automatically cast incoming values or sync with storage.
+**Important:** Storage (localStorage/sessionStorage) is used **for persistence only**, not as a reactive data source.
+
+- **On initialization**: State is loaded from storage if it exists
+- **On updates**: Changes to the state proxy automatically write to storage AND trigger reactive updates
+- **On reads**: Values are read from the in-memory reactive proxy (not from storage)
+
+**The in-memory state proxy is the source of truth for reactivity.** Storage is only used to persist state across page reloads.
+
+⚠️ **This means:**
+- Updating storage directly via `localStorage.setItem()` will **NOT** trigger UI updates
+- Updating storage via browser dev tools will **NOT** trigger UI updates
+- Changes will only be reflected after a page reload or when the state is re-initialized
+
+**To trigger reactive updates, always modify the state object itself:**
+
+```javascript
+// ✅ CORRECT - Triggers reactivity
+const user = state.get('user');
+user.name = 'Alice';  // Updates in-memory state, writes to storage, triggers UI update
+
+// ❌ WRONG - Does NOT trigger reactivity
+localStorage.setItem('user', JSON.stringify({ name: 'Alice' }));  // Only updates storage
+```
+
+### 8. Transformations
+
+Automatically cast incoming values or sync with storage. Built-in transforms include: `Integer`, `Number`, `String`, `Boolean`.
 
 ```javascript
 cDOM.signal(0, { 
     name: 'count', 
-    transform: 'Integer' // Built-in: Integer, Number, String, Boolean
+    transform: 'Integer' 
 });
 ```
+
+### 9. Macros
+
+Macros allow you to define reusable logic templates entirely in JSON, without writing JavaScript. They are perfect for domain-specific calculations, complex formulas, or frequently-used patterns.
+
+#### Defining a Macro
+
+```json
+{
+  "=macro": {
+    "name": "adjusted_price",
+    "schema": {
+      "type": "object",
+      "required": ["basePrice", "taxRate"],
+      "properties": {
+        "basePrice": { "type": "number", "minimum": 0 },
+        "taxRate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "discount": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "body": {
+      "*": [
+        "$.basePrice",
+        { "+": [1, "$.taxRate"] },
+        { "-": [1, "$.discount"] }
+      ]
+    }
+  }
+}
+```
+
+**Fields:**
+- **`name`**: The macro identifier (becomes a callable helper)
+- **`schema`** (optional): JSON Schema for input validation
+- **`body`**: The template structure using `$.propertyName` to reference inputs
+
+#### Calling a Macro
+
+Macros are called like any helper, but always with an object argument:
+
+```json
+{
+  "=adjusted_price": {
+    "basePrice": 100,
+    "taxRate": 0.08,
+    "discount": 0.10
+  }
+}
+```
+
+Result: `97.2` (100 × 1.08 × 0.90)
+
+#### Using State in Macros
+
+```json
+{
+  "=adjusted_price": {
+    "basePrice": "=/product/price",
+    "taxRate": "=/settings/tax",
+    "discount": 0.10
+  }
+}
+```
+
+### 10. Object-Based Helper Arguments
+
+Helpers can now accept either **positional arguments** (array) or **named arguments** (object):
+
+**Positional (traditional):**
+```json
+{ "=sum": [1, 2, 3] }
+```
+
+**Named (new):**
+```json
+{
+  "=webservice": {
+    "url": "/api/users",
+    "method": "POST",
+    "body": "=/formData"
+  }
+}
+```
+
+When an object is passed, it's treated as a single argument. To pass an array as a single argument, wrap it: `[[1, 2, 3]]`.
+
 
 ## Supported Operators and Helpers
 
