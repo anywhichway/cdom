@@ -35,19 +35,19 @@
     };
 
 
+    function tokenize(src) {
+        const tokenRegex = /\s*(\d*\.\d+|\d+|"([^"\\]|\\.)*"|'([^'\\]|\\.)*'|=\/|=\$this|=\$event|=\$query|=\$|[a-zA-Z_$][\w$]*|==|!=|<=|>=|&&|\|\||[-+*/%^<>!?:.,(){}[\]])\s*/g;
+        const results = [];
+        let match;
+        while ((match = tokenRegex.exec(src)) !== null) {
+            results.push(match[1]);
+        }
+        return results;
+    }
+
     function createExpression(text) {
         let at = 0;
         const tokens = tokenize(text);
-
-        function tokenize(src) {
-            const results = [];
-            const tokenRegex = /\s*(\d*\.\d+|\d+|"([^"\\]|\\.)*"|'([^'\\]|\\.)*'|=\/|=\$this|=\$event|=\$query|=\$|[a-zA-Z_$][\w$]*|==|!=|<=|>=|&&|\|\||[-+*/%^<>!?:.,(){}[\]])\s*/g;
-            let match;
-            while ((match = tokenRegex.exec(src)) !== null) {
-                results.push(match[1]);
-            }
-            return results;
-        }
 
         function peek(offset = 0) { return tokens[at + offset]; }
         function next() { return tokens[at++]; }
@@ -852,6 +852,7 @@
     }
 
     async function loadHelper(name) {
+        if (helpers.has(name)) return Promise.resolve(helpers.get(name));
         if (pendingHelpers.has(name)) return pendingHelpers.get(name);
 
         const promise = (async () => {
@@ -904,6 +905,42 @@
             helperWaiters.set(name, set);
         }
         set.add(sub);
+    }
+
+    function findNeededHelpers(obj, found = new Set()) {
+        if (!obj) return found;
+
+        if (typeof obj === 'string') {
+            if (obj.startsWith('=') && obj.length > 1) {
+                const tokens = tokenize(obj);
+                for (let i = 0; i < tokens.length; i++) {
+                    const t = tokens[i];
+                    if (/^[a-zA-Z_$][\w$]*$/.test(t) && !['true', 'false', 'null', 'undefined'].includes(t)) {
+                        if (i > 0 && tokens[i - 1] === '.') continue;
+                        found.add(t);
+                    }
+                }
+            }
+            return found;
+        }
+
+        if (typeof obj !== 'object' || obj.nodeType) return found;
+
+        if (Array.isArray(obj)) {
+            for (const item of obj) findNeededHelpers(item, found);
+            return found;
+        }
+
+        for (const key in obj) {
+            const alias = symbolicOperators.get(key);
+            if (key.startsWith('=') && key.length > 1) {
+                found.add(key.slice(1));
+            } else if (alias) {
+                found.add(alias);
+            }
+            findNeededHelpers(obj[key], found);
+        }
+        return found;
     }
 
 
@@ -1497,6 +1534,13 @@
                 const query = Object.fromEntries(url.searchParams.entries());
                 element._queryContext = query;
                 if (!element._macroContext) element._macroContext = query;
+
+                // Pre-load all needed helpers to avoid "suspense" flickering during hypermedia loads
+                const helpersToLoad = findNeededHelpers(cdomData);
+                if (helpersToLoad.size > 0) {
+                    await Promise.all(Array.from(helpersToLoad).map(name => loadHelper(name)));
+                }
+
                 const dom = cdomToDOM(cdomData, true, false, element);
                 element.replaceChildren(dom);
             } else if (isHTML) {
@@ -1554,6 +1598,65 @@
         }
     }
 
+    // Core Library Functions (Inlined for performance/reliability)
+    const _sum = (...args) => args.flat(Infinity).reduce((a, b) => a + (Number(b) || 0), 0);
+    const _sub = (...args) => {
+        const flat = args.flat(Infinity).map(v => Number(v) || 0);
+        if (flat.length === 0) return 0;
+        if (flat.length === 1) return -flat[0];
+        return flat.reduce((a, b) => a - b);
+    };
+    const _mul = (...args) => args.flat(Infinity).reduce((a, b) => a * (Number(b) || 1), 1);
+    const _div = (a, b) => (Number(a) || 0) / (Number(b) || 1);
+
+    const _set = function (target, val) {
+        if (target && typeof target === 'object' && 'value' in target) {
+            target.value = val;
+        } else if (target && typeof target === 'function' && 'value' in target) {
+            target.value = val;
+        } else if (target && typeof target === 'object' && val && typeof val === 'object') {
+            Object.assign(target, val);
+        }
+        return val;
+    };
+    _set.mutates = true;
+
+    const _inc = function (target, by = 1) {
+        const hasValue = target && (typeof target === 'object' || typeof target === 'function') && 'value' in target;
+        const current = hasValue ? target.value : 0;
+        return _set(target, Number(current) + Number(by));
+    };
+    _inc.mutates = true;
+
+    const _dec = function (target, by = 1) {
+        const hasValue = target && (typeof target === 'object' || typeof target === 'function') && 'value' in target;
+        const current = hasValue ? target.value : 0;
+        return _set(target, Number(current) - Number(by));
+    };
+    _dec.mutates = true;
+
+    const _toggle = function (target) {
+        const hasValue = target && (typeof target === 'object' || typeof target === 'function') && 'value' in target;
+        const current = hasValue ? target.value : false;
+        return _set(target, !current);
+    };
+    _toggle.mutates = true;
+
+    const _if = (c, t, e) => c ? t : e;
+    const _ifs = (...args) => {
+        for (let i = 0; i < args.length; i += 2) {
+            if (i + 1 >= args.length) return args[i]; // Default case
+            if (args[i]) return args[i + 1];
+        }
+    };
+
+    const _switch = (exp, ...args) => {
+        for (let i = 0; i < args.length - 1; i += 2) {
+            if (exp === args[i]) return args[i + 1];
+        }
+        return args.length % 2 === 1 ? args[args.length - 1] : undefined;
+    };
+
     // Export to global scope
     cDOM.signal = signal;
     cDOM.state = state;
@@ -1571,6 +1674,27 @@
     // Register core helpers
     helpers.set('state', state);
     helpers.set('signal', signal);
+    helpers.set('sum', _sum);
+    helpers.set('add', _sum);
+    helpers.set('subtract', _sub);
+    helpers.set('multiply', _mul);
+    helpers.set('divide', _div);
+    helpers.set('eq', (a, b) => a == b);
+    helpers.set('neq', (a, b) => a != b);
+    helpers.set('gt', (a, b) => a > b);
+    helpers.set('lt', (a, b) => a < b);
+    helpers.set('gte', (a, b) => a >= b);
+    helpers.set('lte', (a, b) => a <= b);
+    helpers.set('and', (...args) => args.every(Boolean));
+    helpers.set('or', (...args) => args.some(Boolean));
+    helpers.set('not', (a) => !a);
+    helpers.set('set', _set);
+    helpers.set('increment', _inc);
+    helpers.set('decrement', _dec);
+    helpers.set('toggle', _toggle);
+    helpers.set('if', _if);
+    helpers.set('ifs', _ifs);
+    helpers.set('switch', _switch);
 
     // Default Operator Mappings
     cDOM.operator('+', 'add');
@@ -1578,8 +1702,11 @@
     cDOM.operator('*', 'multiply');
     cDOM.operator('/', 'divide');
     cDOM.operator('==', 'eq');
+    cDOM.operator('!=', 'neq');
     cDOM.operator('>', 'gt');
     cDOM.operator('<', 'lt');
+    cDOM.operator('>=', 'gte');
+    cDOM.operator('<=', 'lte');
     cDOM.operator('&&', 'and');
     cDOM.operator('||', 'or');
     cDOM.operator('!', 'not');
